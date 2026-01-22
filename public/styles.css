@@ -1,0 +1,310 @@
+html, body { overflow-x: hidden; }
+
+:root{
+  --border: #c8a57a;     /* café claro */
+  --bg: #0f0f10;
+  --card: rgba(255,255,255,0.06);
+  --text: #ffffff;
+  --muted: rgba(255,255,255,0.72);
+  --danger: #ff5b5b;
+  --ok: #4ee18a;
+}
+
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+
+body{
+  min-height:100vh;
+  margin:0;
+  color: var(--text);
+
+  /* FOTO DE FONDO */
+  background-image: url("/img/fondo.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  /* oscurecer para que se lea bien */
+  background-color: rgba(0, 0, 0, 0.65);
+  background-blend-mode: darken;
+
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+a{ color: inherit; }
+
+/* ✅ Contenedor (sin barra horizontal y con aire a la derecha) */
+.container{
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-right: 28px; /* clave para que NO se corte el panel derecho */
+}
+
+/* ✅ Topbar */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:14px;
+
+  /* glass */
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(3px);
+}
+
+.top-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap: wrap; /* por si la ventana es angosta */
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background: rgba(0,0,0,0.30);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.btn{
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: rgba(0,0,0,0.35);
+  color: var(--text);
+  padding:10px 12px;
+  font-weight:700;
+  cursor:pointer;
+}
+.btn:hover{ filter: brightness(1.1); }
+
+.btn-small{
+  width:auto;
+  padding:10px 12px;
+  border-radius:12px;
+}
+
+.btn-danger{
+  border-color: rgba(255, 91, 91, 0.9);
+  color: #fff;
+  background: rgba(255, 91, 91, 0.18);
+}
+.btn-danger:hover{ filter: brightness(1.15); }
+
+/* ✅ Grid principal: panel derecho MÁS angosto y sin corte */
+.grid{
+  display:grid;
+  grid-template-columns: 1fr 200px; /* ⬅️ panel derecho angosto */
+  gap:16px;
+  width:100%;
+}
+
+/* En pantallas chicas, panel abajo */
+@media (max-width: 950px){
+  .grid{ grid-template-columns: 1fr; }
+}
+
+/* ✅ Bloques con glass */
+.requests-area,
+.panel,
+.card{
+  border:1px solid var(--border);
+  border-radius:14px;
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(3px);
+}
+
+/* ✅ Panel derecho: evitar que se “salga” */
+.panel{
+  width:100%;
+  max-width: 240px;
+  padding:16px;
+}
+
+/* ✅ Área solicitudes */
+.requests-area{
+  padding:16px;
+  min-height: 420px;
+}
+
+.h2{
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.muted{ color: var(--muted); font-size: 12px; }
+
+/* ✅ Cards: 5 columnas, pero con MIN ancho para que no queden angostas */
+.cards{
+  display:grid;
+  gap:14px;
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
+}
+
+/* Breakpoints */
+@media (max-width: 1500px){
+  .cards{ grid-template-columns: repeat(4, minmax(260px, 1fr)); }
+}
+@media (max-width: 1200px){
+  .cards{ grid-template-columns: repeat(3, minmax(260px, 1fr)); }
+}
+@media (max-width: 900px){
+  .cards{ grid-template-columns: repeat(2, minmax(260px, 1fr)); }
+}
+@media (max-width: 560px){
+  .cards{ grid-template-columns: 1fr; }
+}
+
+/* ✅ Tarjeta mesa */
+.card{
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.table-card{
+  min-height: 300px;
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  align-items:center;
+}
+
+.title{
+  font-weight:700;
+  font-size: 14px;
+}
+
+.status{
+  font-size: 12px;
+  font-weight:700;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+}
+
+.status.pending{ color: var(--danger); }
+
+/* ✅ Lista interna con scroll sutil */
+.song-list{
+  display:grid;
+  gap:10px;
+  max-height: 260px;
+  overflow-y:auto;
+  padding-right:8px;
+  -webkit-overflow-scrolling: touch;
+
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255,255,255,.22) transparent;
+}
+
+/* Chrome / Edge scrollbar sutil */
+.song-list::-webkit-scrollbar{ width: 8px; }
+.song-list::-webkit-scrollbar-track{ background: transparent; }
+.song-list::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.song-list::-webkit-scrollbar-thumb:hover{
+  background: rgba(255,255,255,0.28);
+}
+
+/* ✅ Botón Reproducida abajo, full ancho y más chico */
+.btn-mini{
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 10px;
+  border:1px solid var(--border);
+  background: rgba(0,0,0,0.35);
+  color: var(--text);
+  cursor:pointer;
+}
+.btn-mini:hover{ filter: brightness(1.1); }
+
+/* Form (usuario) por si lo usas */
+.form{
+  margin-top:16px;
+  display:grid;
+  gap:10px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:16px;
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(3px);
+}
+
+label{ font-size: 13px; color: var(--muted); display:block; margin-bottom:6px; }
+
+input{
+  width:100%;
+  padding:12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: rgba(0,0,0,0.35);
+  color: var(--text);
+  outline:none;
+}
+
+.help{ font-size: 12px; color: var(--muted); }
+.toast{ margin-top:10px; font-size: 13px; color: var(--muted); }
+
+.song-time{
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.65);
+}
+
+/* ✅ Parpadeo azul al llegar solicitud nueva */
+@keyframes pulseBlue {
+  0%   { box-shadow: 0 0 0 rgba(60, 170, 255, 0); border-color: var(--border); }
+  20%  { box-shadow: 0 0 18px rgba(60, 170, 255, 0.55); border-color: rgba(60,170,255,0.95); }
+  50%  { box-shadow: 0 0 0 rgba(60, 170, 255, 0); border-color: var(--border); }
+  80%  { box-shadow: 0 0 18px rgba(60, 170, 255, 0.55); border-color: rgba(60,170,255,0.95); }
+  100% { box-shadow: 0 0 0 rgba(60, 170, 255, 0); border-color: var(--border); }
+}
+
+.flash-new {
+  animation: pulseBlue 3.5s ease-in-out;
+}
+
+/* ✅ Parpadeo solo del título "Mesa XXX" */
+.flash-title {
+  animation: pulseBlueText 3.5s ease-in-out;
+}
+
+@keyframes pulseBlueText {
+  0%   { color: var(--text); text-shadow: none; }
+  20%  { color: rgb(120, 200, 255); text-shadow: 0 0 10px rgba(60,170,255,0.6); }
+  50%  { color: var(--text); text-shadow: none; }
+  80%  { color: rgb(120, 200, 255); text-shadow: 0 0 10px rgba(60,170,255,0.6); }
+  100% { color: var(--text); text-shadow: none; }
+}
+
+/* ✅ Resaltar SOLO las etiquetas (Canción/Nombre/Artista) cuando es nuevo */
+.flash-labels b{
+  color: rgb(160, 220, 255);
+  text-shadow: 0 0 8px rgba(60,170,255,0.5);
+}

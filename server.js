@@ -1,0 +1,99 @@
+// server.js
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.json());
+app.use(express.static("public"));
+
+let requests = [];
+let lastId = 0;
+
+app.get("/", (req, res) => res.sendFile(process.cwd() + "/public/index.html"));
+app.get("/celular", (req, res) => res.sendFile(process.cwd() + "/public/index.html"));
+app.get("/dj", (req, res) => res.sendFile(process.cwd() + "/public/dj.html"));
+
+function validatePayload({ table, name, artist, song }) {
+  // Mesa: 1-999 (máx 3 cifras, solo números)
+  if (!/^\d{1,3}$/.test(String(table ?? ""))) return "Mesa inválida (solo números, máx 3 cifras).";
+  const t = Number(table);
+  if (t < 1 || t > 999) return "Mesa inválida (1 a 999).";
+
+  // Límites anti-spam
+  if (typeof name !== "string" || name.trim().length < 1) return "Nombre requerido.";
+  if (name.trim().length > 10) return "Nombre excede 10 caracteres.";
+
+  if (typeof artist !== "string" || artist.trim().length < 1) return "Artista requerido.";
+  if (artist.trim().length > 15) return "Artista excede 15 caracteres.";
+
+  if (typeof song !== "string" || song.trim().length < 1) return "Canción/tema requerido.";
+  if (song.trim().length > 15) return "Canción excede 15 caracteres.";
+
+  return null;
+}
+
+// ✅ Crear solicitud
+app.post("/api/requests", (req, res) => {
+  const error = validatePayload(req.body);
+  if (error) return res.status(400).json({ ok: false, error });
+
+  const item = {
+    id: ++lastId,
+    table: String(req.body.table).trim(),
+    name: req.body.name.trim(),
+    artist: req.body.artist.trim(),
+    song: req.body.song.trim(),
+    createdAt: new Date().toISOString(),
+    status: "Pendiente",
+  };
+
+  // ✅ IMPORTANTE: dejamos el orden VIEJO → NUEVO
+  // Esto hace que dentro de cada mesa, la primera canción quede arriba
+  // y las nuevas vayan quedando abajo.
+  requests.push(item);
+
+  io.emit("requests:update", requests);
+  res.json({ ok: true, item });
+});
+
+// Listar solicitudes
+app.get("/api/requests", (req, res) => {
+  res.json({ ok: true, requests });
+});
+
+// ✅ Limpiar todo
+app.delete("/api/requests", (req, res) => {
+  requests = [];
+  io.emit("requests:update", requests);
+  res.json({ ok: true });
+});
+
+// Eliminar 1 solicitud (Reproducida)
+app.delete("/api/requests/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const before = requests.length;
+
+  requests = requests.filter((r) => r.id !== id);
+
+  if (requests.length === before) {
+    return res.status(404).json({ ok: false, error: "No encontrada." });
+  }
+
+  io.emit("requests:update", requests);
+  res.json({ ok: true });
+});
+
+io.on("connection", (socket) => {
+  socket.emit("requests:update", requests);
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Servidor listo en http://localhost:${PORT}`);
+  console.log(`Usuario: http://localhost:${PORT}/`);
+  console.log(`DJ:     http://localhost:${PORT}/dj`);
+});
