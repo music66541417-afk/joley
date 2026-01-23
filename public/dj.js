@@ -44,14 +44,13 @@ function groupByTable(requests) {
   for (const r of requests) {
     if (!map.has(r.table)) map.set(r.table, []);
     map.get(r.table).push(r);
-    // ✅ Con tu server.js (requests.push), esto queda viejo→nuevo dentro de la mesa
+    // ✅ Con server.js (requests.push), queda viejo→nuevo dentro de la mesa
   }
   return map;
 }
 
 function uniqueTablesInOrder(requests) {
-  // ✅ Devuelve mesas en orden de aparición en "requests"
-  // Con tu server.js (viejo→nuevo), esto quedará: mesas antiguas primero, nuevas al final
+  // ✅ Mesas en orden de aparición en "requests" (viejo→nuevo)
   const seen = new Set();
   const out = [];
   for (const r of requests) {
@@ -99,25 +98,23 @@ function render(requests) {
     emptyMsg.textContent = "";
   }
 
-  // ✅ Orden de mesas para el área principal:
-  // Mantén el orden natural (la primera mesa que apareció queda primero)
+  // ✅ Área principal: mesas en orden natural (antiguas primero)
   const tablesOrder = uniqueTablesInOrder(requests);
 
-  // ✅ Panel derecho: "últimas mesas" => la más nueva arriba
+  // ✅ Panel derecho: últimas mesas => la más nueva arriba
   const tablesNewestFirst = [...tablesOrder].reverse();
-
   lastTables.innerHTML = tablesNewestFirst.length
     ? tablesNewestFirst.map((t, idx) => `<div>• ${idx + 1}. Mesa ${escapeHtml(t)}</div>`).join("")
     : `<div>—</div>`;
 
-  // Área principal: una tarjeta por mesa
+  // ✅ Una tarjeta por mesa
   const grouped = groupByTable(requests);
 
   for (const table of tablesOrder) {
     const list = grouped.get(table) || [];
-    // ✅ IMPORTANTE: NO reverse aquí, porque tu server ya manda viejo→nuevo
+    // ✅ NO reverse: ya viene viejo→nuevo (primera arriba, nuevas abajo)
 
-    // ✅ Esta mesa "es nueva" si tiene al menos 1 request nueva
+    // ✅ Mesa "nueva" si tiene al menos 1 request nueva
     const hasNewForThisTable = list.some(r => newIdSet.has(r.id));
 
     const card = document.createElement("div");
@@ -132,10 +129,14 @@ function render(requests) {
       </div>
 
       <div class="song-list">
-        ${list.map(r => `
+        ${list.map((r, idx) => `
           <div class="song-item">
-            <div class="song-meta ${hasNewForThisTable ? "flash-labels" : ""}">
-              <b>Canción:</b> ${escapeHtml(r.song)}
+            <!-- ✅ Línea Canción con badge # a la derecha -->
+            <div class="song-line ${hasNewForThisTable ? "flash-labels" : ""}">
+              <div class="song-meta">
+                <b>Canción:</b> ${escapeHtml(r.song)}
+              </div>
+              <span class="song-index">#${idx + 1}</span>
             </div>
 
             <div class="song-meta ${hasNewForThisTable ? "flash-labels" : ""}">
@@ -159,7 +160,7 @@ function render(requests) {
     cards.appendChild(card);
   }
 
-  // Botones reproducida: elimina solo esa solicitud
+  // ✅ Botones reproducida: elimina solo esa solicitud
   document.querySelectorAll("button[data-id]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-id");

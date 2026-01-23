@@ -25,13 +25,13 @@ function validatePayload({ table, name, artist, song }) {
 
   // Límites anti-spam
   if (typeof name !== "string" || name.trim().length < 1) return "Nombre requerido.";
-  if (name.trim().length > 10) return "Nombre excede 10 caracteres.";
+  if (name.trim().length > 25) return "Nombre excede 25 caracteres.";
 
   if (typeof artist !== "string" || artist.trim().length < 1) return "Artista requerido.";
-  if (artist.trim().length > 15) return "Artista excede 15 caracteres.";
+  if (artist.trim().length > 25) return "Artista excede 25 caracteres.";
 
   if (typeof song !== "string" || song.trim().length < 1) return "Canción/tema requerido.";
-  if (song.trim().length > 15) return "Canción excede 15 caracteres.";
+  if (song.trim().length > 25) return "Canción excede 25 caracteres.";
 
   return null;
 }
