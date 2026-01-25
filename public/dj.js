@@ -11,9 +11,9 @@ const clearAllBtn = document.getElementById("clearAllBtn");
 const socket = io();
 
 /**
- * ✅ Anti-parpadeo al cargar:
- * - En la PRIMERA actualización que llega, NO animamos.
- * - Luego, cualquier request nueva que aparezca sí anima 3-4 segundos.
+ * Anti-parpadeo al cargar:
+ * - Primera actualización NO anima
+ * - Luego, solo nuevas requests
  */
 let prevIds = new Set();
 let hasBootstrapped = false;
@@ -30,7 +30,6 @@ clearAllBtn?.addEventListener("click", async () => {
 
   try {
     await fetch("/api/requests", { method: "DELETE" });
-    // Se actualizará por socket
   } catch (e) {
     alert("No se pudo limpiar. Revisa conexión.");
   } finally {
@@ -44,13 +43,11 @@ function groupByTable(requests) {
   for (const r of requests) {
     if (!map.has(r.table)) map.set(r.table, []);
     map.get(r.table).push(r);
-    // ✅ Con server.js (requests.push), queda viejo→nuevo dentro de la mesa
   }
   return map;
 }
 
 function uniqueTablesInOrder(requests) {
-  // ✅ Mesas en orden de aparición en "requests" (viejo→nuevo)
   const seen = new Set();
   const out = [];
   for (const r of requests) {
@@ -63,17 +60,14 @@ function uniqueTablesInOrder(requests) {
 }
 
 function formatDate(iso) {
-  if (!iso) return "";
   try {
-    const d = new Date(iso);
-    return d.toLocaleString();
+    return new Date(iso).toLocaleString();
   } catch {
     return iso;
   }
 }
 
 function render(requests) {
-  // ✅ Detectar IDs nuevos (para animación)
   const currentIds = new Set(requests.map(r => r.id));
   const newIdSet = new Set();
 
@@ -98,60 +92,87 @@ function render(requests) {
     emptyMsg.textContent = "";
   }
 
-  // ✅ Área principal: mesas en orden natural (antiguas primero)
+  // ✅ SOLO CAMBIO PEDIDO: identificar la mesa de la última solicitud
+  const lastTable = requests[requests.length - 1]?.table;
+
   const tablesOrder = uniqueTablesInOrder(requests);
 
-  // ✅ Panel derecho: últimas mesas => la más nueva arriba
-  const tablesNewestFirst = [...tablesOrder].reverse();
-  lastTables.innerHTML = tablesNewestFirst.length
-    ? tablesNewestFirst.map((t, idx) => `<div>• ${idx + 1}. Mesa ${escapeHtml(t)}</div>`).join("")
-    : `<div>—</div>`;
+  // ✅ SOLO CAMBIO PEDIDO: mostrar el nombre del PRIMER pedido pendiente por mesa (FIFO)
+  // Se mantiene hasta que el DJ elimina ese pedido; luego pasa al siguiente.
+  const firstNameByTable = new Map();
+  for (const r of requests) {
+    const key = String(r.table);
+    if (!firstNameByTable.has(key)) firstNameByTable.set(key, r.name);
+  }
 
-  // ✅ Una tarjeta por mesa
+  lastTables.innerHTML = tablesOrder
+    .map((t, i) => {
+      const name = firstNameByTable.get(String(t)) ?? "";
+      return `
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span>#${i + 1}. Mesa ${escapeHtml(t)}</span>
+          <span style="margin-left:auto; padding-left:14px;">${escapeHtml(name)}</span>
+        </div>
+      `;
+    })
+    .join("");
+
   const grouped = groupByTable(requests);
 
   for (const table of tablesOrder) {
     const list = grouped.get(table) || [];
-    // ✅ NO reverse: ya viene viejo→nuevo (primera arriba, nuevas abajo)
 
-    // ✅ Mesa "nueva" si tiene al menos 1 request nueva
+    // ✅ Mesa nueva → borde azul (NO se toca)
     const hasNewForThisTable = list.some(r => newIdSet.has(r.id));
+
+    // ✅ detectar SOLO la última canción nueva
+    let lastNewId = null;
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (newIdSet.has(list[i].id)) {
+        lastNewId = list[i].id;
+        break;
+      }
+    }
+
+    // ✅ SOLO CAMBIO PEDIDO: si esta mesa es la última en recibir solicitud
+    const isLastTable = String(table) === String(lastTable);
 
     const card = document.createElement("div");
     card.className = "card table-card" + (hasNewForThisTable ? " flash-new" : "");
 
     card.innerHTML = `
       <div class="row">
-        <div class="title ${hasNewForThisTable ? "flash-title" : ""}">
-          Mesa ${escapeHtml(table)}
-        </div>
-        <span class="status pending">Pendiente</span>
+        <div class="title">Mesa ${escapeHtml(table)}</div>
+        <span class="status pending">${isLastTable ? "ÚLTIMA MESA" : "Pendiente"}</span>
       </div>
 
       <div class="song-list">
-        ${list.map((r, idx) => `
-          <div class="song-item">
-            <!-- ✅ Línea Canción con badge # a la derecha -->
-            <div class="song-line ${hasNewForThisTable ? "flash-labels" : ""}">
-              <div class="song-meta">
-                <b>Canción:</b> ${escapeHtml(r.song)}
+        ${list.map((r, idx) => {
+          const isLastNew = r.id === lastNewId;
+
+          return `
+            <div class="song-item ${isLastNew ? "new-song" : ""}">
+              <div class="song-line">
+                <div class="song-meta">
+                  <b>Canción:</b> ${escapeHtml(r.song)}
+                </div>
+                <span class="song-index">#${idx + 1}</span>
               </div>
-              <span class="song-index">#${idx + 1}</span>
+
+              <div class="song-meta">
+                <b>Artista:</b> ${escapeHtml(r.artist)}
+              </div>
+
+              <div class="song-meta">
+                <b>Cliente:</b> ${escapeHtml(r.name)}
+              </div>
+
+              <div class="song-time">${escapeHtml(formatDate(r.createdAt))}</div>
+
+              <button class="btn-mini" data-id="${r.id}">✅ Reproducida</button>
             </div>
-
-            <div class="song-meta ${hasNewForThisTable ? "flash-labels" : ""}">
-              <b>Nombre:</b> ${escapeHtml(r.name)}
-            </div>
-
-            <div class="song-meta ${hasNewForThisTable ? "flash-labels" : ""}">
-              <b>Artista:</b> ${escapeHtml(r.artist)}
-            </div>
-
-            <div class="song-time">${escapeHtml(formatDate(r.createdAt))}</div>
-
-            <button class="btn-mini" data-id="${r.id}">✅ Reproducida</button>
-          </div>
-        `).join("")}
+          `;
+        }).join("")}
       </div>
 
       <div class="muted">Total en esta mesa: <b>${list.length}</b></div>
@@ -160,25 +181,23 @@ function render(requests) {
     cards.appendChild(card);
   }
 
-  // ✅ Botones reproducida: elimina solo esa solicitud
   document.querySelectorAll("button[data-id]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-id");
       btn.disabled = true;
-      const old = btn.textContent;
       btn.textContent = "Quitando...";
 
       try {
         await fetch(`/api/requests/${id}`, { method: "DELETE" });
-      } catch (e) {
+      } catch {
         btn.disabled = false;
-        btn.textContent = old;
+        btn.textContent = "✅ Reproducida";
       }
     });
   });
 }
 
-socket.on("requests:update", (requests) => render(requests));
+socket.on("requests:update", requests => render(requests));
 
 function escapeHtml(str) {
   return String(str ?? "")

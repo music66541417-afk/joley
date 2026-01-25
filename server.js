@@ -8,7 +8,8 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());
-app.use(express.static("public"));
+app.use(express.static("public", { index: false }));
+
 
 // =======================
 // Cola piso 1 (DJ)
@@ -23,7 +24,7 @@ let requests2 = [];
 let lastId2 = 0;
 
 // Rutas páginas
-app.get("/", (req, res) => res.sendFile(process.cwd() + "/public/index.html"));
+app.get("/", (req, res) => res.sendFile(process.cwd() + "/public/img/fondo.jpg"));
 app.get("/piso1", (req, res) => res.sendFile(process.cwd() + "/public/index.html"));
 app.get("/dj", (req, res) => res.sendFile(process.cwd() + "/public/dj.html"));
 
@@ -40,13 +41,13 @@ function validatePayload({ table, name, artist, song }) {
 
   // Límites anti-spam
   if (typeof name !== "string" || name.trim().length < 1) return "Nombre requerido.";
-  if (name.trim().length > 25) return "Nombre excede 25 caracteres.";
+  if (name.trim().length > 40) return "Nombre excede 40 caracteres.";
 
   if (typeof artist !== "string" || artist.trim().length < 1) return "Artista requerido.";
-  if (artist.trim().length > 25) return "Artista excede 25 caracteres.";
+  if (artist.trim().length > 40) return "Artista excede 40 caracteres.";
 
   if (typeof song !== "string" || song.trim().length < 1) return "Canción/tema requerido.";
-  if (song.trim().length > 25) return "Canción excede 25 caracteres.";
+  if (song.trim().length > 40) return "Canción excede 40 caracteres.";
 
   return null;
 }
@@ -168,5 +169,11 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor listo en http://localhost:${PORT}`);
   console.log(`Usuario: http://localhost:${PORT}/`);
   console.log(`DJ:     http://localhost:${PORT}/dj`);
+  console.log(`Piso2 (Clientes): http://localhost:${PORT}/piso1`);
   console.log(`DJ2:    http://localhost:${PORT}/dj2`);
+  console.log(`Piso2 (Clientes): http://localhost:${PORT}/piso2`);
+    
+  
+
+
 });

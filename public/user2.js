@@ -29,9 +29,9 @@ form.addEventListener("submit", async (e) => {
   const t = Number(table);
   if (t < 1 || t > 999) return showToast("Mesa inválida (1 a 999).");
 
-  if (name.length < 1 || name.length > 50) return showToast("Nombre inválido (1 a 50).");
-  if (artist.length < 1 || artist.length > 50) return showToast("Artista inválido (1 a 50).");
-  if (song.length < 1 || song.length > 80) return showToast("Canción inválida (1 a 80).");
+  if (name.length < 1 || name.length > 40) return showToast("Nombre inválido (1 a 40).");
+  if (artist.length < 1 || artist.length > 40) return showToast("Artista inválido (1 a 40).");
+  if (song.length < 1 || song.length > 40) return showToast("Canción inválida (1 a 40).");
 
   try {
     // ✅ Piso 2 -> requests2
