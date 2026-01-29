@@ -3,36 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login DJ</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>Login DJ - Jolly Roger</title>
+  <link rel="stylesheet" href="/login.css">
 </head>
 <body>
-  <div class="container" style="max-width:520px;">
-    <div class="topbar" style="justify-content:center;">
-      <div>
-        <div class="title">🔒 Login DJ</div>
-        <div class="muted">Ingresa para acceder al panel.</div>
+  <main class="shell">
+    <!-- IZQUIERDA: imagen full + texto encima -->
+    <section class="left">
+      <div class="left-overlay">
+        <div class="welcome">
+          <h1>Karaoke Jolly Roger</h1>
+          <p>Acceso exclusivo para DJ. Ingresa tus credenciales para administrar las solicitudes.</p>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <form class="form" id="loginForm" autocomplete="off">
-      <div>
-        <label for="username">Usuario</label>
-        <input id="username" name="username" maxlength="50" required />
+    <!-- DERECHA: formulario -->
+    <section class="right">
+      <div class="card">
+        <div class="card-head">
+          <div class="kicker">INICIO DE SESIÓN</div>
+          <h2>Ingreso DJ</h2>
+          <p></p>
+        </div>
+
+        <form class="form" id="loginForm" autocomplete="off">
+          <label class="field">
+            <span>Usuario</span>
+            <input id="username" name="username" maxlength="50" required placeholder="" />
+          </label>
+
+          <label class="field">
+            <span>Contraseña</span>
+            <input id="password" name="password" type="password" maxlength="80" required placeholder="" />
+          </label>
+
+          <!-- destino después del login -->
+          <input type="hidden" id="next" value="/dj" />
+
+          <button class="btn" type="submit">Entrar</button>
+          <div class="toast" id="toast"></div>
+        </form>
+
+        <div class="foot">
+          <span class="dot">•</span>
+          <span>Acceso restringido / Registro de actividad activo</span>
+        </div>
       </div>
-
-      <div>
-        <label for="password">Clave</label>
-        <input id="password" name="password" type="password" maxlength="80" required />
-      </div>
-
-      <!-- 🔑 destino después del login -->
-      <input type="hidden" id="next" value="/dj" />
-
-      <button class="btn" type="submit">Entrar</button>
-      <div class="toast" id="toast"></div>
-    </form>
-  </div>
+    </section>
+  </main>
 
   <script>
     const form = document.getElementById("loginForm");
@@ -44,9 +63,34 @@
     const nextInput = document.getElementById("next");
     nextInput.value = params.get("next") || "/dj";
 
+    function resetLoginButton(){
+      const btn = document.querySelector("#loginForm .btn");
+      if(!btn) return;
+      btn.classList.remove("loading");
+      btn.textContent = btn.dataset.originalText || "Entrar";
+    }
+
+    // ✅ al volver con la flecha atrás (bfcache) se resetea el botón y el toast
+    window.addEventListener("pageshow", () => {
+      resetLoginButton();
+      showToast("");
+    });
+
+    // ✅ opcional: al salir, lo deja limpio también
+    window.addEventListener("pagehide", () => {
+      resetLoginButton();
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       showToast("");
+
+      const btn = form.querySelector(".btn");
+      if(!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+
+      // ✅ loader en el botón
+      btn.classList.add("loading");
+      btn.textContent = "Ingresando...";
 
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
@@ -60,12 +104,18 @@
         });
 
         const data = await res.json();
-        if(!data.ok) return showToast(data.error || "No se pudo entrar.");
 
-        // ✅ redirige automáticamente a /dj o /dj2
+        // ✅ SIEMPRE mensaje genérico (no filtra si fue usuario o clave)
+        if(!data.ok){
+          resetLoginButton();
+          return showToast("Credenciales incorrectas.");
+        }
+
         window.location.href = data.next || "/dj";
       }catch{
-        showToast("Error de conexión.");
+        // ✅ también genérico por seguridad
+        resetLoginButton();
+        showToast("Credenciales incorrectas.");
       }
     });
   </script>
