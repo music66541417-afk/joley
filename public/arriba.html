@@ -12,6 +12,7 @@
       <div>
         <div class="title">📲 Pedir canción</div>
         <div class="muted">Completa los datos y envía tu solicitud al DJ.</div>
+        <div class="muted">Termino de solicitudes (02:30am).</div>
       </div>
       <span class="badge">Anti-spam activo</span>
     </div>
@@ -19,7 +20,16 @@
     <form class="form" id="requestForm" autocomplete="off">
       <div>
         <label for="table">Número de mesa</label>
-        <input id="table" name="table" inputmode="numeric" placeholder="Ej: 13" maxlength="3" required />
+        <input
+          id="table"
+          name="table"
+          type="number"
+          inputmode="numeric"
+          min="1"
+          max="50"
+          placeholder="Mesa (1 a 50)"
+          required
+        />
       </div>
 
       <div>
