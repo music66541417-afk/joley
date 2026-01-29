@@ -12,15 +12,10 @@ function showToast(msg) {
   toast.textContent = msg;
 }
 
-// ✅ Mesa: solo números + clamp 1..50 (en vivo)
+// ✅ Mesa: solo números + clamp 1..50 (en vivo) — sin steppers
 tableInput.addEventListener("input", () => {
-  // deja solo dígitos
-  let raw = tableInput.value.replace(/[^\d]/g, "");
+  let raw = tableInput.value.replace(/[^\d]/g, "").slice(0, 2);
 
-  // 50 = 2 dígitos
-  raw = raw.slice(0, 2);
-
-  // permite borrar
   if (raw === "") {
     tableInput.value = "";
     return;
@@ -49,7 +44,6 @@ form.addEventListener("submit", async (e) => {
 
   // ✅ Validación mesa (1 a 50)
   if (!/^\d{1,2}$/.test(table)) return showToast("Mesa inválida (solo números).");
-
   const t = Number(table);
   if (t < 1 || t > MESA_MAX) return showToast(`Mesa inválida (1 a ${MESA_MAX}).`);
 
@@ -66,8 +60,6 @@ form.addEventListener("submit", async (e) => {
     });
 
     const data = await res.json();
-
-    // ✅ mensaje genérico (no filtra detalle del server)
     if (!data.ok) return showToast("No se pudo enviar. Intenta nuevamente.");
 
     form.reset();
