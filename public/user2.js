@@ -59,8 +59,24 @@ form.addEventListener("submit", async (e) => {
       body: JSON.stringify({ table: String(t), name, artist, song })
     });
 
-    const data = await res.json();
-    if (!data.ok) return showToast("No se pudo enviar. Intenta nuevamente.");
+    // Intentamos leer JSON de forma segura
+    let data = null;
+    const ct = res.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      data = await res.json();
+    } else {
+      data = { ok: res.ok };
+    }
+
+    // ✅ Horario cerrado (server manda 403)
+    if (res.status === 403) {
+      return showToast(data?.error || "Las solicitudes no están disponibles en este horario.");
+    }
+
+    // Otros errores
+    if (!res.ok || !data?.ok) {
+      return showToast(data?.error || "No se pudo enviar. Intenta nuevamente.");
+    }
 
     form.reset();
     showToast("✅ Solicitud enviada al DJ. ¡Gracias!");

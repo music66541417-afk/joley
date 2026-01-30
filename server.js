@@ -26,9 +26,12 @@ pool.on("error", (err) => {
 });
 
 // ✅ Test DB (suave)
-pool.query("SELECT 1 as ok")
+pool
+  .query("SELECT 1 as ok")
   .then(() => console.log("✅ DB conectada"))
-  .catch((e) => console.log("⚠️ DB aún no responde (puede ser normal):", e.message));
+  .catch((e) =>
+    console.log("⚠️ DB aún no responde (puede ser normal):", e.message)
+  );
 
 // =======================
 // App / Server
@@ -45,20 +48,22 @@ app.use(express.static("public", { index: false }));
 // =======================
 const PgSession = connectPgSimple(session);
 
-app.use(session({
-  store: new PgSession({
-    pool,
-    tableName: "session",
-  }),
-  secret: process.env.SESSION_SECRET || "dev_secret",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: 1000 * 60 * 60 * 12, // 12h
-  }
-}));
+app.use(
+  session({
+    store: new PgSession({
+      pool,
+      tableName: "session",
+    }),
+    secret: process.env.SESSION_SECRET || "dev_secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 1000 * 60 * 60 * 12, // 12h
+    },
+  })
+);
 
 // =======================
 // Middleware auth
@@ -114,7 +119,6 @@ app.get("/", (req, res) => {
   // si NO está logueado → login
   return res.redirect("/login");
 });
-
 
 app.get("/login", (req, res) =>
   res.sendFile(process.cwd() + "/public/login.html")
@@ -176,10 +180,14 @@ app.post("/auth/bootstrap", async (req, res) => {
     const { username, password, dj_route } = req.body;
 
     if (!username || !password || !dj_route) {
-      return res.status(400).json({ ok: false, error: "Faltan datos (username, password, dj_route)" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "Faltan datos (username, password, dj_route)" });
     }
     if (!["/dj", "/dj2"].includes(dj_route)) {
-      return res.status(400).json({ ok: false, error: "dj_route inválido (usa /dj o /dj2)" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "dj_route inválido (usa /dj o /dj2)" });
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -196,6 +204,85 @@ app.post("/auth/bootstrap", async (req, res) => {
 });
 
 // =======================
+// Horarios por piso (Servidor Chile)
+// =======================
+const TZ_CHILE = process.env.TZ_CHILE || "America/Santiago";
+
+// Horarios "HH:MM" (puedes cambiarlos por .env para probar)
+const CUTOFF_PISO1_HHMM = process.env.CUTOFF_PISO1 || "03:30"; // Piso 1
+const CUTOFF_PISO2_HHMM = process.env.CUTOFF_PISO2 || "02:30"; // Piso 2
+
+// Hora en la que "se reinicia" y vuelve a permitir (evita que quede cerrado todo el día)
+const RESET_HHMM = process.env.RESET_HHMM || "12:00";
+
+function hhmmToMinutes(hhmm) {
+  const m = String(hhmm || "").match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (hh < 0 || hh > 23 || mm < 0 || mm > 59) return null;
+  return hh * 60 + mm;
+}
+
+const CUTOFF_PISO1_MIN = hhmmToMinutes(CUTOFF_PISO1_HHMM);
+const CUTOFF_PISO2_MIN = hhmmToMinutes(CUTOFF_PISO2_HHMM);
+const RESET_MIN = hhmmToMinutes(RESET_HHMM);
+
+// Si algo está mal en env, ponemos defaults seguros
+const cutoffPiso1 = CUTOFF_PISO1_MIN ?? 3 * 60 + 30; // 03:30
+const cutoffPiso2 = CUTOFF_PISO2_MIN ?? 2 * 60 + 30; // 02:30
+const resetMin = RESET_MIN ?? 12 * 60; // 12:00
+
+function getChileMinutesNow() {
+  const parts = new Intl.DateTimeFormat("es-CL", {
+    timeZone: TZ_CHILE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const hh = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const mm = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return hh * 60 + mm;
+}
+
+function isClosed(nowMin, cutoffMin) {
+  // Cerrado desde cutoff hasta reset (ej: 03:30 -> 12:00)
+  return nowMin >= cutoffMin && nowMin < resetMin;
+}
+
+function rejectIfClosedForFloor(floor) {
+  const nowMin = getChileMinutesNow();
+  const cutoffMin = floor === 2 ? cutoffPiso2 : cutoffPiso1;
+
+  if (isClosed(nowMin, cutoffMin)) {
+    return {
+      ok: false,
+      error: "Las solicitudes no están disponibles en este horario.",
+      floor,
+      tz: TZ_CHILE,
+      nowMinutes: nowMin,
+      cutoff: floor === 2 ? CUTOFF_PISO2_HHMM : CUTOFF_PISO1_HHMM,
+      reset: RESET_HHMM,
+    };
+  }
+  return null;
+}
+
+// Endpoint útil para testear desde el celu / navegador
+app.get("/api/hours", (req, res) => {
+  const nowMin = getChileMinutesNow();
+  res.json({
+    ok: true,
+    tz: TZ_CHILE,
+    nowMinutes: nowMin,
+    piso1: { cutoff: CUTOFF_PISO1_HHMM, closed: isClosed(nowMin, cutoffPiso1) },
+    piso2: { cutoff: CUTOFF_PISO2_HHMM, closed: isClosed(nowMin, cutoffPiso2) },
+    reset: RESET_HHMM,
+  });
+});
+
+// =======================
 // Requests Piso 1
 // =======================
 function validatePayload({ table, name, artist, song }) {
@@ -207,6 +294,9 @@ function validatePayload({ table, name, artist, song }) {
 }
 
 app.post("/api/requests", (req, res) => {
+  const closed = rejectIfClosedForFloor(1);
+  if (closed) return res.status(403).json(closed);
+
   const error = validatePayload(req.body);
   if (error) return res.status(400).json({ ok: false, error });
 
@@ -222,12 +312,10 @@ app.post("/api/requests", (req, res) => {
   res.json({ ok: true, item });
 });
 
-app.get("/api/requests", (req, res) =>
-  res.json({ ok: true, requests })
-);
+app.get("/api/requests", (req, res) => res.json({ ok: true, requests }));
 
 app.delete("/api/requests/:id", (req, res) => {
-  requests = requests.filter(r => r.id !== Number(req.params.id));
+  requests = requests.filter((r) => r.id !== Number(req.params.id));
   io.emit("requests:update", requests);
   res.json({ ok: true });
 });
@@ -242,6 +330,9 @@ app.delete("/api/requests", (req, res) => {
 // Requests Piso 2
 // =======================
 app.post("/api/requests2", (req, res) => {
+  const closed = rejectIfClosedForFloor(2);
+  if (closed) return res.status(403).json(closed);
+
   const error = validatePayload(req.body);
   if (error) return res.status(400).json({ ok: false, error });
 
@@ -262,7 +353,7 @@ app.get("/api/requests2", (req, res) =>
 );
 
 app.delete("/api/requests2/:id", (req, res) => {
-  requests2 = requests2.filter(r => r.id !== Number(req.params.id));
+  requests2 = requests2.filter((r) => r.id !== Number(req.params.id));
   io.emit("requests2:update", requests2);
   res.json({ ok: true });
 });
@@ -292,4 +383,10 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`DJ2:    http://localhost:${PORT}/dj2`);
   console.log(`Piso2 (Clientes): http://localhost:${PORT}/piso2`);
   console.log("DATABASE_URL cargada:", !!process.env.DATABASE_URL);
+
+  console.log("⏱️ Horarios (Chile):");
+  console.log("   TZ_CHILE:", TZ_CHILE);
+  console.log("   CUTOFF_PISO1:", CUTOFF_PISO1_HHMM);
+  console.log("   CUTOFF_PISO2:", CUTOFF_PISO2_HHMM);
+  console.log("   RESET_HHMM:", RESET_HHMM);
 });
