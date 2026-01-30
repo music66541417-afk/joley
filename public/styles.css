@@ -181,6 +181,7 @@ a{ color: inherit; }
   min-height: 300px;
 }
 
+/* Header fila */
 .row{
   display:flex;
   justify-content:space-between;
@@ -188,17 +189,46 @@ a{ color: inherit; }
   align-items:center;
 }
 
+/* ✅ FIX: title + punto verde (UNA sola definición) */
 .title{
   font-weight:700;
   font-size: 14px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
 }
 
-.status{
-  font-size: 12px;
-  font-weight:700;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid var(--border);
+/* ✅ FIX: Punto verde sutil (UNA sola definición, sin margin-left:auto) */
+.next-dot{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ee18a;
+  box-shadow: 0 0 6px rgba(78,225,138,.35);
+  animation: pulseNext 2.2s ease-in-out infinite;
+  opacity: .75;
+}
+
+/* parpadeo MUY suave */
+@keyframes pulseNext{
+  0%   { opacity: .35; transform: scale(.92); }
+  50%  { opacity: .90; transform: scale(1);   }
+  100% { opacity: .35; transform: scale(.92); }
+}
+
+/* ✅ FIX: Badge ÚLTIMA MESA / Recién añadido (UNA sola base coherente) */
+.status.ultima{
+  font-size: 10.5px;
+  padding: 3px 8px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  line-height: 1;
+  border-radius: 999px;
+
+  background: linear-gradient(180deg, #f7d27a, #d7a23d);
+  border: 1px solid rgba(255,215,140,.75);
+  color: #1a1a1a;
+  text-shadow: 0 1px 0 rgba(255,255,255,.25);
 }
 
 .status.pending{ color: var(--danger); }
@@ -229,7 +259,7 @@ a{ color: inherit; }
   background: rgba(255,255,255,0.28);
 }
 
-/* ✅ Botón Reproducida abajo, full ancho y más chico */
+/* ✅ Botón Reproducida abajo (ya no lo usas, pero lo dejamos por si acaso) */
 .btn-mini{
   width: 100%;
   margin-top: 10px;
@@ -271,9 +301,19 @@ input{
 .toast{ margin-top:10px; font-size: 13px; color: var(--muted); }
 
 .song-time{
-  margin-top: 6px;
+  margin-top: 0px;
   font-size: 11px;
   color: rgba(255,255,255,0.65);
+}
+
+/* ✅ NUEVO: fila inferior (fecha/hora + botón) */
+.song-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top: 2px;
+  padding-top: 0;
 }
 
 /* ✅ Parpadeo azul al llegar solicitud nueva */
@@ -308,41 +348,10 @@ input{
   text-shadow: 0 0 8px rgba(60,170,255,0.5);
 }
 
-/* ✅ Numeración #1 #2 #3... (mismo estilo que la fecha) */
-.song-index{
-  display: inline-block;
-  margin-left: 8px;          /* separación del título "Canción" */
-  font-size: 11px;           /* igual que .song-time */
-  color: rgba(255,255,255,0.65); /* mismo “plomo” */
-  font-weight: 500;
-}
-
-/* Opcional: si quieres el # un poquito más separado */
-.song-index::before{
-  content: " ";
-}
-/* === Badge numeración canción (#1, #2, #3) === */
-.song-line{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.song-index{
-  font-size: 11px; /* igual que la fecha */
-  color: rgba(255,255,255,0.6);
-  border: 1px solid rgba(255,255,255,0.25);
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(255,255,255,0.04);
-  white-space: nowrap;
-}
-
-/* ✅ Canción + # (badge discreto alineado a la derecha) */
+/* ✅ FIX: Canción + # (alineado) y badge # estilo pill (UNA sola versión) */
 .song-line{
   display:flex;
-  align-items:baseline;
+  align-items:center;
   justify-content:space-between;
   gap:10px;
 }
@@ -356,6 +365,7 @@ input{
   border-radius: 999px;
   background: rgba(0,0,0,0.22);
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* =================================================
@@ -363,22 +373,20 @@ input{
    pintar SOLO los parámetros (labels)
    Canción / Nombre / Artista
 ================================================= */
-
 .song-item.new-song .song-meta b {
   color: rgb(255, 215, 120);
   text-shadow: 0 0 8px rgba(255,200,80,0.6);
 }
 
-/* Canción / Artista / Cliente en estado normal (plomo intermedio) */
+/* Canción / Artista / Cliente en estado normal */
 .song-item .song-meta b {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* ❌ asegurar que el valor NO herede azul */
+/* asegurar que el valor NO herede */
 .song-item.new-song .song-meta {
   color: var(--text);
 }
-
 
 .status.last{
   color: var(--ok);
@@ -388,5 +396,129 @@ input{
 
 /* ✅ Borde de la mesa más oscuro que el contenedor */
 .table-card{
-  border-color: rgba(200,165,122,0.55); /* más oscuro */
+  border-color: rgba(200,165,122,0.55);
+}
+
+/* Panel derecho: filas más limpias */
+#lastTables > div{
+  border-radius: 10px;
+  padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.02);
+}
+
+/* Primera mesa (la que sigue) */
+#lastTables > div:first-child{
+  background: rgba(200,165,122,.14);
+  border-color: rgba(200,165,122,.35);
+  font-weight: 900;
+}
+
+/* Tarjeta "mesa siguiente" (la que está #1 en el panel derecho) */
+.table-card.next-up{
+  border-color: rgba(200,165,122,.85) !important;
+  box-shadow: 0 0 0 2px rgba(200,165,122,.10);
+  position: relative;
+}
+
+/* ✅ FIX: si antes existía "SIGUE", lo dejamos desactivado (UNA sola regla) */
+.table-card.next-up::after{
+  content: none !important;
+}
+
+/* ===============================
+   BADGE ULTIMA MESA / RECIEN AÑADIDO
+=============================== */
+
+/* "Recién añadido" (4s, parpadeo dorado) */
+.status.ultima-new{
+  animation: ultimaBlink 0.9s ease-in-out infinite;
+}
+
+@keyframes ultimaBlink{
+  0%   { opacity: .55; }
+  50%  { opacity: 1; }
+  100% { opacity: .55; }
+}
+
+/* luego queda "ÚLTIMA MESA" tenue */
+.status.ultima-faded{
+  opacity: 0.55;
+  filter: grayscale(30%);
+}
+
+/* Borde parpadeando mientras dice "Recién añadido" */
+.table-card.recien-card{
+  animation: recienBorder 0.9s ease-in-out infinite;
+}
+
+@keyframes recienBorder{
+  0%{
+    box-shadow: 0 0 0 2px rgba(255,215,120,.05);
+    border-color: rgba(255,215,120,.25);
+  }
+  50%{
+    box-shadow: 0 0 0 2px rgba(255,215,120,.22);
+    border-color: rgba(255,215,120,.75);
+  }
+  100%{
+    box-shadow: 0 0 0 2px rgba(255,215,120,.05);
+    border-color: rgba(255,215,120,.25);
+  }
+}
+
+/* ===============================
+   Botón ícono Reproducida (VERDE) + confirmación inline (VERDE más oscuro)
+=============================== */
+/* ===============================
+   Botón ícono Reproducida (VERDE oscuro) + confirmación inline (AMARILLO)
+=============================== */
+
+/* ✅ Botón normal: verde más oscuro y más chico */
+.icon-btn{
+  width: 24px;              /* antes 34px */
+  height: 24px;             /* antes 34px */
+  border-radius: 8px;
+
+  /* verde más oscuro (menos saturado) */
+  border: 1.5px solid rgba(46, 160, 102, 0.95);
+  background: rgba(46, 160, 102, 0.55);
+
+  color: rgba(10, 18, 14, 0.95);
+  font-weight: 900;
+  font-size: 13px;          /* mantiene el check legible */
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  transition: transform .08s ease, filter .12s ease, box-shadow .12s ease;
+}
+
+.icon-btn:hover{
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 0 10px rgba(46,160,102,.22);
+}
+
+.icon-btn:active{ transform: translateY(0); }
+
+.icon-btn:disabled{
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* ✅ 1er click (confirmación): amarillo parpadeando */
+.icon-btn.confirm{
+  border-color: rgba(255, 215, 120, 0.95);
+  background: rgba(255, 215, 120, 0.28);
+  color: rgba(25, 18, 8, 0.95);
+  animation: pulseConfirmYellow 1s infinite;
+}
+
+@keyframes pulseConfirmYellow{
+  0%   { box-shadow: 0 0 0 0 rgba(255,215,120,.45); }
+  70%  { box-shadow: 0 0 0 6px rgba(255,215,120,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,215,120,0); }
 }

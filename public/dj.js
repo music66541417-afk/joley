@@ -18,6 +18,13 @@ const socket = io();
 let prevIds = new Set();
 let hasBootstrapped = false;
 
+// ✅ Para que el "Recién añadido" se dispare 1 vez por request nueva
+let lastNewBadgeId = null;
+
+// ✅ Confirmación sutil inline para "Reproducida" (doble click)
+let pendingConfirmId = null;
+let confirmTimeout = null;
+
 refreshBtn?.addEventListener("click", () => location.reload());
 
 clearAllBtn?.addEventListener("click", async () => {
@@ -68,7 +75,7 @@ function formatDate(iso) {
 }
 
 function render(requests) {
-  const currentIds = new Set(requests.map(r => r.id));
+  const currentIds = new Set(requests.map((r) => r.id));
   const newIdSet = new Set();
 
   if (!hasBootstrapped) {
@@ -84,6 +91,13 @@ function render(requests) {
   countBadge.textContent = `${requests.length} pendientes`;
   cards.innerHTML = "";
 
+  // reset confirmación si ya no existe esa request
+  if (pendingConfirmId && !currentIds.has(pendingConfirmId)) {
+    pendingConfirmId = null;
+    clearTimeout(confirmTimeout);
+    confirmTimeout = null;
+  }
+
   if (requests.length === 0) {
     emptyMsg.textContent = "No hay solicitudes pendientes.";
     lastTables.innerHTML = `<div>—</div>`;
@@ -92,19 +106,26 @@ function render(requests) {
     emptyMsg.textContent = "";
   }
 
-  // ✅ SOLO CAMBIO PEDIDO: identificar la mesa de la última solicitud
-  const lastTable = requests[requests.length - 1]?.table;
+  const lastReq = requests[requests.length - 1];
+  const lastTable = lastReq?.table;
+  const lastReqId = lastReq?.id ?? null;
 
   const tablesOrder = uniqueTablesInOrder(requests);
 
-  // ✅ SOLO CAMBIO PEDIDO: mostrar el nombre del PRIMER pedido pendiente por mesa (FIFO)
-  // Se mantiene hasta que el DJ elimina ese pedido; luego pasa al siguiente.
+  // ✅ mesa que debe sonar (la primera del panel derecho)
+  const nextUpTable = tablesOrder[0];
+
+  // ✅ si la última request llegó recién (es nueva)
+  const shouldShowRecien = !!(lastReqId && newIdSet.has(lastReqId));
+
+  // FIFO: primer nombre por mesa
   const firstNameByTable = new Map();
   for (const r of requests) {
     const key = String(r.table);
     if (!firstNameByTable.has(key)) firstNameByTable.set(key, r.name);
   }
 
+  // Panel derecho
   lastTables.innerHTML = tablesOrder
     .map((t, i) => {
       const name = firstNameByTable.get(String(t)) ?? "";
@@ -122,10 +143,10 @@ function render(requests) {
   for (const table of tablesOrder) {
     const list = grouped.get(table) || [];
 
-    // ✅ Mesa nueva → borde azul (NO se toca)
-    const hasNewForThisTable = list.some(r => newIdSet.has(r.id));
+    // mesa nueva → borde azul
+    const hasNewForThisTable = list.some((r) => newIdSet.has(r.id));
 
-    // ✅ detectar SOLO la última canción nueva
+    // última canción nueva de esta mesa
     let lastNewId = null;
     for (let i = list.length - 1; i >= 0; i--) {
       if (newIdSet.has(list[i].id)) {
@@ -134,45 +155,83 @@ function render(requests) {
       }
     }
 
-    // ✅ SOLO CAMBIO PEDIDO: si esta mesa es la última en recibir solicitud
     const isLastTable = String(table) === String(lastTable);
+    const isNextUp = String(table) === String(nextUpTable);
+
+    // ✅ "Recién añadido" solo si: es la última mesa y la última request llegó recién
+    const showRecienBadge = isLastTable && shouldShowRecien;
 
     const card = document.createElement("div");
-    card.className = "card table-card" + (hasNewForThisTable ? " flash-new" : "");
+
+    card.className =
+      "card table-card" +
+      (hasNewForThisTable ? " flash-new" : "") +
+      (isNextUp ? " next-up" : "") +
+      (showRecienBadge ? " recien-card" : "");
 
     card.innerHTML = `
       <div class="row">
-        <div class="title">Mesa ${escapeHtml(table)}</div>
-        <span class="status pending">${isLastTable ? "ÚLTIMA MESA" : "Pendiente"}</span>
+        <div class="title">
+          Mesa ${escapeHtml(table)}
+          ${isNextUp ? `<span class="next-dot" aria-label="Siguiente"></span>` : ``}
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${
+            isLastTable
+              ? `
+                <span
+                  class="status ultima ${showRecienBadge ? "ultima-new" : "ultima-faded"}"
+                  data-lastbadge-id="${escapeHtml(lastReqId)}"
+                >
+                  ${showRecienBadge ? "Recién añadido" : "ÚLTIMA MESA"}
+                </span>
+              `
+              : ``
+          }
+        </div>
       </div>
 
       <div class="song-list">
-        ${list.map((r, idx) => {
-          const isLastNew = r.id === lastNewId;
+        ${list
+          .map((r, idx) => {
+            const isLastNew = r.id === lastNewId;
 
-          return `
-            <div class="song-item ${isLastNew ? "new-song" : ""}">
-              <div class="song-line">
-                <div class="song-meta">
-                  <b>Canción:</b> ${escapeHtml(r.song)}
+            // Estado visual del botón si está en modo confirmación
+            const confirmClass = pendingConfirmId === r.id ? " confirm" : "";
+
+            return `
+              <div class="song-item ${isLastNew ? "new-song" : ""}">
+                <div class="song-line">
+                  <div class="song-meta">
+                    <b>Canción:</b> ${escapeHtml(r.song)}
+                  </div>
+
+                  <span class="song-index">#${idx + 1}</span>
                 </div>
-                <span class="song-index">#${idx + 1}</span>
+
+                <div class="song-meta">
+                  <b>Artista:</b> ${escapeHtml(r.artist)}
+                </div>
+
+                <div class="song-meta">
+                  <b>Cliente:</b> ${escapeHtml(r.name)}
+                </div>
+
+                <div class="song-footer">
+                  <div class="song-time">${escapeHtml(formatDate(r.createdAt))}</div>
+
+                  <!-- ✅ Botón abajo al lado de la hora (no rompe los textos) -->
+                  <button class="icon-btn played-btn${confirmClass}" data-id="${escapeHtml(
+                    r.id
+                  )}" title="Marcar como reproducida">
+                    ✓
+                  </button>
+                </div>
               </div>
-
-              <div class="song-meta">
-                <b>Artista:</b> ${escapeHtml(r.artist)}
-              </div>
-
-              <div class="song-meta">
-                <b>Cliente:</b> ${escapeHtml(r.name)}
-              </div>
-
-              <div class="song-time">${escapeHtml(formatDate(r.createdAt))}</div>
-
-              <button class="btn-mini" data-id="${r.id}">✅ Reproducida</button>
-            </div>
-          `;
-        }).join("")}
+            `;
+          })
+          .join("")}
       </div>
 
       <div class="muted">Total en esta mesa: <b>${list.length}</b></div>
@@ -181,23 +240,79 @@ function render(requests) {
     cards.appendChild(card);
   }
 
-  document.querySelectorAll("button[data-id]").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const id = btn.getAttribute("data-id");
-      btn.disabled = true;
-      btn.textContent = "Quitando...";
+  // ✅ Cambiar "Recién añadido" -> "ÚLTIMA MESA" tenue después de 4s
+  if (shouldShowRecien && lastReqId && lastNewBadgeId !== lastReqId) {
+    lastNewBadgeId = lastReqId;
 
-      try {
-        await fetch(`/api/requests/${id}`, { method: "DELETE" });
-      } catch {
-        btn.disabled = false;
-        btn.textContent = "✅ Reproducida";
-      }
-    });
-  });
+    setTimeout(() => {
+      const sel = `[data-lastbadge-id="${CSS.escape(String(lastReqId))}"]`;
+      const el = document.querySelector(sel);
+      if (!el) return;
+
+      el.textContent = "ÚLTIMA MESA";
+      el.classList.remove("ultima-new");
+      el.classList.add("ultima-faded");
+
+      // apagar borde parpadeante al mismo tiempo
+      const cardEl = el.closest(".table-card");
+      cardEl?.classList.remove("recien-card");
+    }, 4000);
+  }
 }
 
-socket.on("requests:update", requests => render(requests));
+/**
+ * ✅ Manejo de click del botón ícono (doble click confirma)
+ * - 1er click: se pone en modo confirmación (sutil)
+ * - 2do click (antes de 2.5s): elimina
+ */
+cards.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".played-btn");
+  if (!btn) return;
+
+  const id = btn.getAttribute("data-id");
+  if (!id) return;
+
+  // Segundo click (confirmado)
+  if (pendingConfirmId === id) {
+    clearTimeout(confirmTimeout);
+    confirmTimeout = null;
+    pendingConfirmId = null;
+
+    // bloqueo visual inmediato
+    btn.disabled = true;
+    btn.classList.remove("confirm");
+    btn.textContent = "…";
+
+    try {
+      await fetch(`/api/requests/${id}`, { method: "DELETE" });
+      // el server emitirá requests:update y render() se encarga
+    } catch {
+      // si falla, vuelve a estado normal
+      btn.disabled = false;
+      btn.textContent = "✓";
+    }
+    return;
+  }
+
+  // Primer click → activar confirmación para este id
+  pendingConfirmId = id;
+
+  // limpiar confirmación anterior (si existía)
+  document.querySelectorAll(".played-btn.confirm").forEach((b) => {
+    if (b !== btn) b.classList.remove("confirm");
+  });
+
+  btn.classList.add("confirm");
+
+  clearTimeout(confirmTimeout);
+  confirmTimeout = setTimeout(() => {
+    // si sigue siendo el mismo id, se cancela
+    if (pendingConfirmId === id) pendingConfirmId = null;
+    btn.classList.remove("confirm");
+  }, 2500);
+});
+
+socket.on("requests:update", (requests) => render(requests));
 
 function escapeHtml(str) {
   return String(str ?? "")
