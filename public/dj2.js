@@ -8,6 +8,10 @@ const countBadge = document.getElementById("countBadge");
 const refreshBtn = document.getElementById("refreshBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
+// ✅ NUEVO: botón "Pedidos" + dot (verde/rojo)
+const ordersBtn = document.getElementById("ordersBtn");
+const ordersDot = document.getElementById("ordersDot");
+
 const socket = io();
 
 /**
@@ -42,6 +46,21 @@ clearAllBtn?.addEventListener("click", async () => {
   } finally {
     clearAllBtn.disabled = false;
     clearAllBtn.textContent = oldText;
+  }
+});
+
+// ✅ NUEVO: estado pedidos (piso2) en vivo para el DJ2
+socket.on("orders:status", (st) => {
+  if (!ordersDot) return;
+
+  const isOpen = !!st?.piso2;
+
+  ordersDot.classList.remove("open", "closed");
+  ordersDot.classList.add(isOpen ? "open" : "closed");
+
+  // tooltip / title útil para el DJ
+  if (ordersBtn) {
+    ordersBtn.title = isOpen ? "Pedidos abiertos" : "Pedidos cerrados";
   }
 });
 
@@ -132,7 +151,9 @@ function render(requests) {
       return `
         <div style="display:flex; align-items:center; gap:12px;">
           <span>#${i + 1}. Mesa ${escapeHtml(t)}</span>
-          <span style="margin-left:auto; padding-left:14px;">${escapeHtml(name)}</span>
+          <span style="margin-left:auto; padding-left:14px;">${escapeHtml(
+            name
+          )}</span>
         </div>
       `;
     })

@@ -522,3 +522,35 @@ input{
   70%  { box-shadow: 0 0 0 6px rgba(255,215,120,0); }
   100% { box-shadow: 0 0 0 0 rgba(255,215,120,0); }
 }
+
+/* ===============================
+   NUEVO: Dot "Pedidos" (Admin abre/cierra)
+   - Verde = abierto
+   - Rojo  = cerrado
+   Parpadeo similar al next-dot
+=============================== */
+.orders-dot{
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display:inline-block;
+  margin-right: 8px;
+  animation: pulseOrders 1.2s ease-in-out infinite;
+  opacity: .85;
+}
+
+.orders-dot.open{
+  background: var(--ok);
+  box-shadow: 0 0 8px rgba(78,225,138,.35);
+}
+
+.orders-dot.closed{
+  background: var(--danger);
+  box-shadow: 0 0 8px rgba(255,91,91,.35);
+}
+
+@keyframes pulseOrders{
+  0%   { opacity: .35; transform: scale(.92); }
+  50%  { opacity: 1;   transform: scale(1);   }
+  100% { opacity: .35; transform: scale(.92); }
+}

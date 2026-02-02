@@ -8,6 +8,10 @@ const countBadge = document.getElementById("countBadge");
 const refreshBtn = document.getElementById("refreshBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
+// ✅ NUEVO: botón "Pedidos" + dot (verde/rojo)
+const ordersBtn = document.getElementById("ordersBtn");
+const ordersDot = document.getElementById("ordersDot");
+
 const socket = io();
 
 /**
@@ -42,6 +46,21 @@ clearAllBtn?.addEventListener("click", async () => {
   } finally {
     clearAllBtn.disabled = false;
     clearAllBtn.textContent = oldText;
+  }
+});
+
+// ✅ NUEVO: estado pedidos (piso1) en vivo para el DJ
+socket.on("orders:status", (st) => {
+  if (!ordersDot) return;
+
+  const isOpen = !!st?.piso1;
+
+  ordersDot.classList.remove("open", "closed");
+  ordersDot.classList.add(isOpen ? "open" : "closed");
+
+  // tooltip / title útil para el DJ
+  if (ordersBtn) {
+    ordersBtn.title = isOpen ? "Pedidos abiertos" : "Pedidos cerrados";
   }
 });
 
@@ -132,7 +151,9 @@ function render(requests) {
       return `
         <div style="display:flex; align-items:center; gap:12px;">
           <span>#${i + 1}. Mesa ${escapeHtml(t)}</span>
-          <span style="margin-left:auto; padding-left:14px;">${escapeHtml(name)}</span>
+          <span style="margin-left:auto; padding-left:14px;">${escapeHtml(
+            name
+          )}</span>
         </div>
       `;
     })
@@ -173,7 +194,11 @@ function render(requests) {
       <div class="row">
         <div class="title">
           Mesa ${escapeHtml(table)}
-          ${isNextUp ? `<span class="next-dot" aria-label="Siguiente"></span>` : ``}
+          ${
+            isNextUp
+              ? `<span class="next-dot" aria-label="Siguiente"></span>`
+              : ``
+          }
         </div>
 
         <div style="display:flex; align-items:center; gap:10px;">
@@ -181,7 +206,9 @@ function render(requests) {
             isLastTable
               ? `
                 <span
-                  class="status ultima ${showRecienBadge ? "ultima-new" : "ultima-faded"}"
+                  class="status ultima ${
+                    showRecienBadge ? "ultima-new" : "ultima-faded"
+                  }"
                   data-lastbadge-id="${escapeHtml(lastReqId)}"
                 >
                   ${showRecienBadge ? "Recién añadido" : "ÚLTIMA MESA"}

@@ -41,7 +41,8 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());
-app.use(express.static("public", { index: false }));
+
+
 
 // =======================
 // Sessions (PostgreSQL)
@@ -64,6 +65,29 @@ app.use(
     },
   })
 );
+// =======================
+// Bloquear acceso directo a HTML sensibles (evita /admin.html, /dj.html, etc.)
+// =======================
+app.use((req, res, next) => {
+  const blocked = new Set(["/dj.html", "/dj2.html", "/admin.html"]);
+  if (!blocked.has(req.path)) return next();
+
+  if (!req.session?.user) {
+    return res.redirect("/login?next=" + encodeURIComponent(req.originalUrl));
+  }
+
+  // si está logueado, redirigimos a la ruta protegida correcta
+  const map = {
+    "/dj.html": "/dj",
+    "/dj2.html": "/dj2",
+    "/admin.html": "/admin",
+  };
+  return res.redirect(map[req.path] || "/");
+});
+
+// ✅ Static DESPUÉS de session (para que exista req.session en todo)
+app.use(express.static("public", { index: false }));
+
 
 // =======================
 // Middleware auth
@@ -86,6 +110,16 @@ function requireDjRoute(route) {
   };
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.session?.user) {
+    return res.status(401).json({ ok: false, error: "No logueado" });
+  }
+  if (req.session.user.dj_route !== "/admin") {
+    return res.status(403).json({ ok: false, error: "Solo admin" });
+  }
+  return next();
+}
+
 // =======================
 // Health check
 // =======================
@@ -106,6 +140,34 @@ let lastId = 0;
 
 let requests2 = [];
 let lastId2 = 0;
+
+// =======================
+// Estado pedidos (Admin)
+// =======================
+let ordersOpen = {
+  piso1: true,
+  piso2: true,
+};
+
+function emitOrdersStatus() {
+  io.emit("orders:status", ordersOpen);
+}
+
+// Endpoint público para consultar estado (clientes/DJs)
+app.get("/api/orders-status", (req, res) => {
+  res.json({ ok: true, ordersOpen });
+});
+
+// Endpoint Admin para abrir/cerrar por piso
+app.post("/api/admin/orders", requireAdmin, (req, res) => {
+  const { piso1, piso2 } = req.body || {};
+
+  if (typeof piso1 === "boolean") ordersOpen.piso1 = piso1;
+  if (typeof piso2 === "boolean") ordersOpen.piso2 = piso2;
+
+  emitOrdersStatus();
+  return res.json({ ok: true, ordersOpen });
+});
 
 // =======================
 // Rutas páginas
@@ -141,6 +203,11 @@ app.get("/dj2", requireDjRoute("/dj2"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj2.html")
 );
 
+// ✅ Admin panel (nuevo)
+app.get("/admin", requireDjRoute("/admin"), (req, res) =>
+  res.sendFile(process.cwd() + "/public/admin.html")
+);
+
 // =======================
 // Login / Auth
 // =======================
@@ -162,10 +229,10 @@ app.post("/auth/login", async (req, res) => {
   req.session.user = {
     id: user.id,
     username: user.username,
-    dj_route: user.dj_route, // "/dj" o "/dj2"
+    dj_route: user.dj_route, // "/dj" o "/dj2" o "/admin"
   };
 
-  // ✅ siempre lo manda al DJ correcto
+  // ✅ siempre lo manda a su vista correcta
   return res.json({ ok: true, next: user.dj_route });
 });
 
@@ -174,7 +241,7 @@ app.post("/auth/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
 
-// ⚠️ SOLO PARA SETUP INICIAL (crea DJs en la BD)
+// ⚠️ SOLO PARA SETUP INICIAL (crea DJs/ADMIN en la BD)
 app.post("/auth/bootstrap", async (req, res) => {
   try {
     const { username, password, dj_route } = req.body;
@@ -184,10 +251,10 @@ app.post("/auth/bootstrap", async (req, res) => {
         .status(400)
         .json({ ok: false, error: "Faltan datos (username, password, dj_route)" });
     }
-    if (!["/dj", "/dj2"].includes(dj_route)) {
+    if (!["/dj", "/dj2", "/admin"].includes(dj_route)) {
       return res
         .status(400)
-        .json({ ok: false, error: "dj_route inválido (usa /dj o /dj2)" });
+        .json({ ok: false, error: "dj_route inválido (usa /dj, /dj2 o /admin)" });
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -264,6 +331,27 @@ function rejectIfClosedForFloor(floor) {
       nowMinutes: nowMin,
       cutoff: floor === 2 ? CUTOFF_PISO2_HHMM : CUTOFF_PISO1_HHMM,
       reset: RESET_HHMM,
+      reason: "schedule",
+    };
+  }
+  return null;
+}
+
+function rejectIfAdminClosed(floor) {
+  if (floor === 1 && !ordersOpen.piso1) {
+    return {
+      ok: false,
+      error: "Lo sentimos, pedidos no disponibles.",
+      floor: 1,
+      reason: "admin",
+    };
+  }
+  if (floor === 2 && !ordersOpen.piso2) {
+    return {
+      ok: false,
+      error: "Lo sentimos, pedidos no disponibles.",
+      floor: 2,
+      reason: "admin",
     };
   }
   return null;
@@ -294,8 +382,13 @@ function validatePayload({ table, name, artist, song }) {
 }
 
 app.post("/api/requests", (req, res) => {
-  const closed = rejectIfClosedForFloor(1);
-  if (closed) return res.status(403).json(closed);
+  // 1) bloqueo por horario
+  const closedBySchedule = rejectIfClosedForFloor(1);
+  if (closedBySchedule) return res.status(403).json(closedBySchedule);
+
+  // 2) bloqueo por admin
+  const closedByAdmin = rejectIfAdminClosed(1);
+  if (closedByAdmin) return res.status(403).json(closedByAdmin);
 
   const error = validatePayload(req.body);
   if (error) return res.status(400).json({ ok: false, error });
@@ -330,8 +423,13 @@ app.delete("/api/requests", (req, res) => {
 // Requests Piso 2
 // =======================
 app.post("/api/requests2", (req, res) => {
-  const closed = rejectIfClosedForFloor(2);
-  if (closed) return res.status(403).json(closed);
+  // 1) bloqueo por horario
+  const closedBySchedule = rejectIfClosedForFloor(2);
+  if (closedBySchedule) return res.status(403).json(closedBySchedule);
+
+  // 2) bloqueo por admin
+  const closedByAdmin = rejectIfAdminClosed(2);
+  if (closedByAdmin) return res.status(403).json(closedByAdmin);
 
   const error = validatePayload(req.body);
   if (error) return res.status(400).json({ ok: false, error });
@@ -370,6 +468,7 @@ app.delete("/api/requests2", (req, res) => {
 io.on("connection", (socket) => {
   socket.emit("requests:update", requests);
   socket.emit("requests2:update", requests2);
+  socket.emit("orders:status", ordersOpen);
 });
 
 // =======================
@@ -382,7 +481,10 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Piso1 (Clientes): http://localhost:${PORT}/piso1`);
   console.log(`DJ2:    http://localhost:${PORT}/dj2`);
   console.log(`Piso2 (Clientes): http://localhost:${PORT}/piso2`);
+  console.log(`Admin:  http://localhost:${PORT}/admin`);
   console.log("DATABASE_URL cargada:", !!process.env.DATABASE_URL);
+
+  console.log("🟢 ordersOpen inicial:", ordersOpen);
 
   console.log("⏱️ Horarios (Chile):");
   console.log("   TZ_CHILE:", TZ_CHILE);

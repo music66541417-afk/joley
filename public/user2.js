@@ -1,3 +1,5 @@
+// public/user2.js
+
 const form = document.getElementById("requestForm");
 const toast = document.getElementById("toast");
 
@@ -68,8 +70,11 @@ form.addEventListener("submit", async (e) => {
       data = { ok: res.ok };
     }
 
-    // ✅ Horario cerrado (server manda 403)
+    // ✅ 403: puede ser por horario o por admin
     if (res.status === 403) {
+      if (data?.reason === "admin") {
+        return showToast("⛔ Lo sentimos, pedidos no disponibles.");
+      }
       return showToast(data?.error || "Las solicitudes no están disponibles en este horario.");
     }
 
