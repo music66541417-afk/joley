@@ -311,12 +311,26 @@ cards.addEventListener("click", async (e) => {
     btn.textContent = "…";
 
     try {
-      await fetch(`/api/requests/${id}`, { method: "DELETE" });
-      // el server emitirá requests:update y render() se encarga
-    } catch {
+      const res = await fetch(`/api/requests/${id}`, { method: "DELETE" });
+
+      // ✅ fetch NO lanza error si es 500/404. Hay que validar.
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Error ${res.status}`);
+      }
+
+      // ✅ FALLBACK: si el socket no actualiza, recargamos lista por HTTP
+      const listRes = await fetch("/api/requests");
+      const listData = await listRes.json().catch(() => null);
+      if (listRes.ok && listData?.ok) {
+        render(listData.requests || []);
+      }
+      // si el socket llega, igual re-renderiza y queda todo sincronizado
+    } catch (err) {
       // si falla, vuelve a estado normal
       btn.disabled = false;
       btn.textContent = "✓";
+      alert(err?.message || "No se pudo marcar como reproducida. Revisa conexión.");
     }
     return;
   }

@@ -8,7 +8,7 @@ const countBadge = document.getElementById("countBadge");
 const refreshBtn = document.getElementById("refreshBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
-// ✅ NUEVO: botón "Pedidos" + dot (verde/rojo)
+// ✅ botón "Pedidos" + dot (verde/rojo)
 const ordersBtn = document.getElementById("ordersBtn");
 const ordersDot = document.getElementById("ordersDot");
 
@@ -49,7 +49,7 @@ clearAllBtn?.addEventListener("click", async () => {
   }
 });
 
-// ✅ NUEVO: estado pedidos (piso2) en vivo para el DJ2
+// ✅ estado pedidos (piso2) en vivo para el DJ2
 socket.on("orders:status", (st) => {
   if (!ordersDot) return;
 
@@ -58,7 +58,6 @@ socket.on("orders:status", (st) => {
   ordersDot.classList.remove("open", "closed");
   ordersDot.classList.add(isOpen ? "open" : "closed");
 
-  // tooltip / title útil para el DJ
   if (ordersBtn) {
     ordersBtn.title = isOpen ? "Pedidos abiertos" : "Pedidos cerrados";
   }
@@ -109,6 +108,11 @@ function render(requests) {
 
   countBadge.textContent = `${requests.length} pendientes`;
   cards.innerHTML = "";
+
+  // ✅ si re-renderizamos, limpiar confirm visual vieja
+  document
+    .querySelectorAll(".played-btn.confirm")
+    .forEach((b) => b.classList.remove("confirm"));
 
   // reset confirmación si ya no existe esa request
   if (pendingConfirmId && !currentIds.has(pendingConfirmId)) {
@@ -194,7 +198,11 @@ function render(requests) {
       <div class="row">
         <div class="title">
           Mesa ${escapeHtml(table)}
-          ${isNextUp ? `<span class="next-dot" aria-label="Siguiente"></span>` : ``}
+          ${
+            isNextUp
+              ? `<span class="next-dot" aria-label="Siguiente"></span>`
+              : ``
+          }
         </div>
 
         <div style="display:flex; align-items:center; gap:10px;">
@@ -202,7 +210,9 @@ function render(requests) {
             isLastTable
               ? `
                 <span
-                  class="status ultima ${showRecienBadge ? "ultima-new" : "ultima-faded"}"
+                  class="status ultima ${
+                    showRecienBadge ? "ultima-new" : "ultima-faded"
+                  }"
                   data-lastbadge-id="${escapeHtml(lastReqId)}"
                 >
                   ${showRecienBadge ? "Recién añadido" : "ÚLTIMA MESA"}
@@ -240,9 +250,10 @@ function render(requests) {
                 </div>
 
                 <div class="song-footer">
-                  <div class="song-time">${escapeHtml(formatDate(r.createdAt))}</div>
+                  <div class="song-time">${escapeHtml(
+                    formatDate(r.createdAt)
+                  )}</div>
 
-                  <!-- ✅ Botón abajo al lado de la hora (doble click confirma) -->
                   <button class="icon-btn played-btn${confirmClass}" data-id="${escapeHtml(
                     r.id
                   )}" title="Marcar como reproducida">
@@ -274,7 +285,6 @@ function render(requests) {
       el.classList.remove("ultima-new");
       el.classList.add("ultima-faded");
 
-      // apagar borde parpadeante al mismo tiempo
       const cardEl = el.closest(".table-card");
       cardEl?.classList.remove("recien-card");
     }, 4000);
@@ -305,12 +315,24 @@ cards.addEventListener("click", async (e) => {
     btn.textContent = "…";
 
     try {
-      await fetch(`/api/requests2/${id}`, { method: "DELETE" });
-      // el server emitirá requests2:update y render() se encarga
-    } catch {
-      // si falla, vuelve a estado normal
+      const res = await fetch(`/api/requests2/${id}`, { method: "DELETE" });
+
+      // ✅ fetch NO lanza error si es 500/404. Hay que validar.
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `Error ${res.status}`);
+      }
+
+      // ✅ FALLBACK: si el socket no actualiza, recargamos lista por HTTP
+      const listRes = await fetch("/api/requests2");
+      const listData = await listRes.json().catch(() => null);
+      if (listRes.ok && listData?.ok) {
+        render(listData.requests || []);
+      }
+    } catch (err) {
       btn.disabled = false;
       btn.textContent = "✓";
+      alert(err?.message || "No se pudo marcar como reproducida. Revisa conexión.");
     }
     return;
   }
@@ -318,7 +340,6 @@ cards.addEventListener("click", async (e) => {
   // Primer click → activar confirmación para este id
   pendingConfirmId = id;
 
-  // limpiar confirmación anterior (si existía)
   document.querySelectorAll(".played-btn.confirm").forEach((b) => {
     if (b !== btn) b.classList.remove("confirm");
   });
@@ -327,7 +348,6 @@ cards.addEventListener("click", async (e) => {
 
   clearTimeout(confirmTimeout);
   confirmTimeout = setTimeout(() => {
-    // si sigue siendo el mismo id, se cancela
     if (pendingConfirmId === id) pendingConfirmId = null;
     btn.classList.remove("confirm");
   }, 2500);

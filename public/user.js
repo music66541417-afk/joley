@@ -10,6 +10,11 @@ const songInput = document.getElementById("song");
 
 const MESA_MAX = 50;
 
+// ✅ Anti-spam: esperar 15s entre envíos
+const COOLDOWN_MS = 15000;
+let lastSentAt = 0;
+let cooldownTimer = null;
+
 function showToast(msg) {
   toast.textContent = msg;
 }
@@ -45,6 +50,14 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   showToast("");
 
+  // ✅ Anti-spam cliente: si aún no pasan 15s, bloquea
+  const now = Date.now();
+  const diff = now - lastSentAt;
+  if (diff < COOLDOWN_MS) {
+    const wait = Math.ceil((COOLDOWN_MS - diff) / 1000);
+    return showToast(`⏳ Espera ${wait}s antes de enviar otra solicitud.`);
+  }
+
   const table = tableInput.value.trim();
   const name = nameInput.value.trim();
   const artist = artistInput.value.trim();
@@ -61,11 +74,25 @@ form.addEventListener("submit", async (e) => {
   if (artist.length < 1 || artist.length > 40) return showToast("Artista inválido (1 a 40).");
   if (song.length < 1 || song.length > 40) return showToast("Canción inválida (1 a 40).");
 
+  // ✅ Botón: bloquear y mostrar estado
+  const btn = form.querySelector("button[type='submit']");
+  const originalText = btn?.textContent || "Enviar solicitud";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+  }
+
+  // limpiar timer viejo si existía
+  if (cooldownTimer) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+  }
+
   try {
     const res = await fetch("/api/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ table: String(t), name, artist, song })
+      body: JSON.stringify({ table: String(t), name, artist, song }),
     });
 
     // Intentamos leer JSON de forma segura
@@ -74,12 +101,24 @@ form.addEventListener("submit", async (e) => {
     if (ct.includes("application/json")) {
       data = await res.json();
     } else {
-      // por si el server devuelve algo distinto
       data = { ok: res.ok };
+    }
+
+    // ✅ 429: cooldown del servidor (regla real)
+    if (res.status === 429) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+      return showToast(data?.error || "⏳ Debes esperar antes de enviar otra.");
     }
 
     // ✅ 403: puede ser por horario o por admin
     if (res.status === 403) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
       if (data?.reason === "admin") {
         return showToast("⛔ Lo sentimos, pedidos no disponibles.");
       }
@@ -88,12 +127,39 @@ form.addEventListener("submit", async (e) => {
 
     // Otros errores
     if (!res.ok || !data?.ok) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
       return showToast(data?.error || "No se pudo enviar. Intenta nuevamente.");
     }
 
+    // ✅ OK: inicia cooldown 15s
+    lastSentAt = Date.now();
+
     form.reset();
     showToast("✅ Solicitud enviada. ¡Gracias!");
+
+    let remaining = Math.ceil(COOLDOWN_MS / 1000);
+
+    cooldownTimer = setInterval(() => {
+      remaining--;
+      if (!btn) return;
+
+      if (remaining <= 0) {
+        clearInterval(cooldownTimer);
+        cooldownTimer = null;
+        btn.disabled = false;
+        btn.textContent = originalText;
+      } else {
+        btn.textContent = `Espera ${remaining}s…`;
+      }
+    }, 1000);
   } catch (err) {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
     showToast("No se pudo enviar. Intenta nuevamente.");
   }
 });

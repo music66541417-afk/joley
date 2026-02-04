@@ -155,7 +155,6 @@ async function loadOrdersStatus() {
     if (q.rowCount) {
       ordersOpen = { piso1: !!q.rows[0].piso1, piso2: !!q.rows[0].piso2 };
     } else {
-      // si no existe fila, la creamos
       await pool.query(
         "INSERT INTO orders_status (id, piso1, piso2) VALUES (1, TRUE, TRUE) ON CONFLICT (id) DO NOTHING"
       );
@@ -276,10 +275,20 @@ function rejectIfClosedForFloor(floor) {
 
 function rejectIfAdminClosed(floor) {
   if (floor === 1 && !ordersOpen.piso1) {
-    return { ok: false, error: "Lo sentimos, pedidos no disponibles.", floor: 1, reason: "admin" };
+    return {
+      ok: false,
+      error: "Lo sentimos, pedidos no disponibles.",
+      floor: 1,
+      reason: "admin",
+    };
   }
   if (floor === 2 && !ordersOpen.piso2) {
-    return { ok: false, error: "Lo sentimos, pedidos no disponibles.", floor: 2, reason: "admin" };
+    return {
+      ok: false,
+      error: "Lo sentimos, pedidos no disponibles.",
+      floor: 2,
+      reason: "admin",
+    };
   }
   return null;
 }
@@ -360,6 +369,111 @@ function validatePayload({ table, name, artist, song }) {
 }
 
 // =======================
+// ✅ Anti-spam SERVIDOR (regla real)
+// 15s por mesa y por piso (aunque refresquen)
+// =======================
+const REQUEST_COOLDOWN_MS = 15000;
+const lastRequestByKey = new Map(); // key -> timestamp(ms)
+
+function checkCooldownOrNull(key) {
+  const now = Date.now();
+  const last = lastRequestByKey.get(key) || 0;
+  const diff = now - last;
+
+  if (diff < REQUEST_COOLDOWN_MS) {
+    const wait = Math.ceil((REQUEST_COOLDOWN_MS - diff) / 1000);
+    return { wait };
+  }
+
+  lastRequestByKey.set(key, now);
+
+  if (lastRequestByKey.size > 8000) {
+    const cutoff = now - 10 * 60 * 1000;
+    for (const [k, ts] of lastRequestByKey.entries()) {
+      if (ts < cutoff) lastRequestByKey.delete(k);
+    }
+    if (lastRequestByKey.size > 12000) lastRequestByKey.clear();
+  }
+
+  return null;
+}
+
+// =======================
+// ✅ song_key (para plays.song_key NOT NULL)
+// =======================
+// =======================
+// ✅ keys (para plays.song_key / plays.artist_key NOT NULL)
+// =======================
+function normalizeKey(x) {
+  return String(x ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function makeSongKey(song, artist) {
+  const s = normalizeKey(song);
+  const a = normalizeKey(artist);
+  const key = `${s}|${a}`.trim();
+  return key || "unknown_song";
+}
+
+function makeArtistKey(artist) {
+  const a = normalizeKey(artist);
+  return a || "unknown_artist";
+}
+
+// Inserta en plays intentando con song_key + artist_key;
+// si alguna columna no existe en otro ambiente, hace fallback
+async function insertPlaySafe({ piso, table_no, name, artist, song, requested_at }) {
+  const song_key = makeSongKey(song, artist);
+  const artist_key = makeArtistKey(artist);
+
+  // 1) intento completo (song_key + artist_key)
+  try {
+    return await pool.query(
+      `
+      INSERT INTO plays (piso, table_no, name, artist, song, song_key, artist_key, requested_at, played_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW())
+      RETURNING id
+      `,
+      [piso, table_no, name, artist, song, song_key, artist_key, requested_at]
+    );
+  } catch (e) {
+    // 42703 = undefined_column (por si en algún ambiente no existen esas columnas)
+    if (e && e.code === "42703") {
+      // 2) intento solo song_key
+      try {
+        return await pool.query(
+          `
+          INSERT INTO plays (piso, table_no, name, artist, song, song_key, requested_at, played_at)
+          VALUES ($1,$2,$3,$4,$5,$6,$7, NOW())
+          RETURNING id
+          `,
+          [piso, table_no, name, artist, song, song_key, requested_at]
+        );
+      } catch (e2) {
+        if (e2 && e2.code === "42703") {
+          // 3) intento sin keys (ambiente antiguo)
+          return await pool.query(
+            `
+            INSERT INTO plays (piso, table_no, name, artist, song, requested_at, played_at)
+            VALUES ($1,$2,$3,$4,$5,$6, NOW())
+            RETURNING id
+            `,
+            [piso, table_no, name, artist, song, requested_at]
+          );
+        }
+        throw e2;
+      }
+    }
+    throw e;
+  }
+}
+
+
+// =======================
 // Requests Piso 1 (DB)
 // =======================
 app.post("/api/requests", async (req, res) => {
@@ -376,6 +490,17 @@ app.post("/api/requests", async (req, res) => {
 
   try {
     const { table, name, artist, song } = req.body;
+
+    const key = `p1:${String(table)}`;
+    const cd = checkCooldownOrNull(key);
+    if (cd) {
+      return res.status(429).json({
+        ok: false,
+        error: `⏳ Espera ${cd.wait}s antes de enviar otra solicitud.`,
+        reason: "cooldown",
+        floor: 1,
+      });
+    }
 
     const q = await pool.query(
       `INSERT INTO requests (table_no, name, artist, song)
@@ -405,23 +530,34 @@ app.delete("/api/requests/:id", async (req, res) => {
   const id = Number(req.params.id);
 
   try {
-    const q = await pool.query(
-      `
-      WITH removed AS (
-        DELETE FROM requests WHERE id=$1
-        RETURNING table_no, name, artist, song, created_at
-      )
-      INSERT INTO plays (piso, table_no, name, artist, song, requested_at, played_at)
-      SELECT 1, table_no, name, artist, song, created_at, NOW()
-      FROM removed
-      RETURNING id
-      `,
+    // 1) sacar la request (sin perder datos)
+    const removed = await pool.query(
+      `DELETE FROM requests WHERE id=$1
+       RETURNING table_no, name, artist, song, created_at`,
       [id]
     );
 
-    // si no había esa request, igual responde ok
+    // si no existía, igual emitimos y devolvemos ok
+    if (!removed.rowCount) {
+      await emitRequests();
+      return res.json({ ok: true, playedLogged: false });
+    }
+
+    const r = removed.rows[0];
+
+    // 2) insertar en plays (con song_key)
+    await insertPlaySafe({
+      piso: 1,
+      table_no: r.table_no,
+      name: r.name,
+      artist: r.artist,
+      song: r.song,
+      requested_at: r.created_at,
+    });
+
+    // 3) update UI realtime
     await emitRequests();
-    return res.json({ ok: true, playedLogged: q.rowCount > 0 });
+    return res.json({ ok: true, playedLogged: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
@@ -456,6 +592,17 @@ app.post("/api/requests2", async (req, res) => {
   try {
     const { table, name, artist, song } = req.body;
 
+    const key = `p2:${String(table)}`;
+    const cd = checkCooldownOrNull(key);
+    if (cd) {
+      return res.status(429).json({
+        ok: false,
+        error: `⏳ Espera ${cd.wait}s antes de enviar otra solicitud.`,
+        reason: "cooldown",
+        floor: 2,
+      });
+    }
+
     const q = await pool.query(
       `INSERT INTO requests2 (table_no, name, artist, song)
        VALUES ($1,$2,$3,$4)
@@ -483,22 +630,30 @@ app.delete("/api/requests2/:id", async (req, res) => {
   const id = Number(req.params.id);
 
   try {
-    const q = await pool.query(
-      `
-      WITH removed AS (
-        DELETE FROM requests2 WHERE id=$1
-        RETURNING table_no, name, artist, song, created_at
-      )
-      INSERT INTO plays (piso, table_no, name, artist, song, requested_at, played_at)
-      SELECT 2, table_no, name, artist, song, created_at, NOW()
-      FROM removed
-      RETURNING id
-      `,
+    const removed = await pool.query(
+      `DELETE FROM requests2 WHERE id=$1
+       RETURNING table_no, name, artist, song, created_at`,
       [id]
     );
 
+    if (!removed.rowCount) {
+      await emitRequests();
+      return res.json({ ok: true, playedLogged: false });
+    }
+
+    const r = removed.rows[0];
+
+    await insertPlaySafe({
+      piso: 2,
+      table_no: r.table_no,
+      name: r.name,
+      artist: r.artist,
+      song: r.song,
+      requested_at: r.created_at,
+    });
+
     await emitRequests();
-    return res.json({ ok: true, playedLogged: q.rowCount > 0 });
+    return res.json({ ok: true, playedLogged: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
@@ -635,7 +790,6 @@ app.get("/api/admin/stats/by-floor", requireAdmin, async (req, res) => {
 // Socket
 // =======================
 io.on("connection", async (socket) => {
-  // al conectar, enviamos estado y colas actuales
   await loadOrdersStatus();
   socket.emit("orders:status", ordersOpen);
 
@@ -666,7 +820,6 @@ const PORT = process.env.PORT || 3000;
     console.log("DATABASE_URL cargada:", !!process.env.DATABASE_URL);
     console.log("🟢 ordersOpen inicial (DB):", ordersOpen);
 
-    // broadcast inicial (por si hay admins conectados)
     emitOrdersStatus();
     await emitRequests();
   });
