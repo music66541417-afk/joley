@@ -1,5 +1,4 @@
 // public/admin.js
-
 const socket = io();
 
 const connBadge = document.getElementById("connBadge");
@@ -19,6 +18,16 @@ const label2 = document.getElementById("label2");
 
 const logoutBtn = document.getElementById("logoutBtn");
 
+// stats
+const daysSelect = document.getElementById("daysSelect");
+const refreshStatsBtn = document.getElementById("refreshStatsBtn");
+const sumTotal = document.getElementById("sumTotal");
+const sumP1 = document.getElementById("sumP1");
+const sumP2 = document.getElementById("sumP2");
+const byDayBox = document.getElementById("byDayBox");
+const topSongsBox = document.getElementById("topSongsBox");
+const topArtistsBox = document.getElementById("topArtistsBox");
+
 function showToast(msg) {
   toast.textContent = msg || "";
 }
@@ -26,14 +35,15 @@ function showToast(msg) {
 let lastStatus = { piso1: true, piso2: true };
 let saving = false;
 
+/* =========================
+   ESTADO PEDIDOS
+========================= */
 function applyStatus(st) {
   lastStatus = st || lastStatus;
 
-  // toggles
   toggle1.checked = !!lastStatus.piso1;
   toggle2.checked = !!lastStatus.piso2;
 
-  // dots + labels
   dot1.classList.remove("open", "closed");
   dot2.classList.remove("open", "closed");
 
@@ -65,48 +75,44 @@ async function saveStatus() {
 
     if (!res.ok || !data?.ok) {
       connBadge.textContent = "Error";
-      showToast(data?.error || "No se pudo guardar (¿sesión admin?).");
-      // revertir visual a lo último conocido
+      showToast(data?.error || "No se pudo guardar.");
       applyStatus(lastStatus);
       return;
     }
 
     connBadge.textContent = "Guardado";
     applyStatus(data.ordersOpen);
-  } catch (e) {
+  } catch {
     connBadge.textContent = "Error";
-    showToast("No se pudo guardar. Revisa conexión.");
+    showToast("Error de conexión.");
     applyStatus(lastStatus);
   } finally {
     saving = false;
     setTimeout(() => {
-      if (connBadge.textContent === "Guardado") connBadge.textContent = "En vivo";
+      if (connBadge.textContent === "Guardado") {
+        connBadge.textContent = "En vivo";
+      }
     }, 700);
   }
 }
 
 // contadores en vivo
 socket.on("requests:update", (reqs) => {
-  count1.textContent = (reqs?.length ?? 0);
+  count1.textContent = reqs?.length ?? 0;
 });
 socket.on("requests2:update", (reqs) => {
-  count2.textContent = (reqs?.length ?? 0);
+  count2.textContent = reqs?.length ?? 0;
 });
 
-// estado pedidos en vivo
+// estado pedidos
 socket.on("orders:status", (st) => {
   applyStatus(st);
   connBadge.textContent = "En vivo";
 });
 
-socket.on("connect", () => {
-  connBadge.textContent = "En vivo";
-});
-socket.on("disconnect", () => {
-  connBadge.textContent = "Desconectado";
-});
+socket.on("connect", () => (connBadge.textContent = "En vivo"));
+socket.on("disconnect", () => (connBadge.textContent = "Desconectado"));
 
-// cambios de switches
 toggle1.addEventListener("change", saveStatus);
 toggle2.addEventListener("change", saveStatus);
 
@@ -118,7 +124,7 @@ logoutBtn.addEventListener("click", async () => {
   location.href = "/login";
 });
 
-// fallback: si por alguna razón no llega socket rápido, consultamos el estado
+// estado inicial
 (async function bootstrapStatus() {
   try {
     const res = await fetch("/api/orders-status");
@@ -126,3 +132,108 @@ logoutBtn.addEventListener("click", async () => {
     if (data?.ok && data.ordersOpen) applyStatus(data.ordersOpen);
   } catch {}
 })();
+
+/* =========================
+   STATS
+========================= */
+
+// 👉 formateador bonito: "03 feb 2026"
+function formatDatePretty(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  return d.toLocaleDateString("es-CL", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function asTable(rows, columns) {
+  if (!rows || rows.length === 0) {
+    return `<div class="muted">Sin datos.</div>`;
+  }
+
+  const head = `
+    <tr>
+      ${columns.map((c) => `<th>${c.label}</th>`).join("")}
+    </tr>
+  `;
+
+  const body = rows
+    .map((r) => {
+      return `
+        <tr>
+          ${columns
+            .map((c) => {
+              let value = r[c.key];
+
+              // 🔥 AQUÍ está el arreglo de la fecha
+              if (c.key === "day") {
+                value = formatDatePretty(value);
+              }
+
+              const cls = c.right ? ' class="right"' : "";
+              return `<td${cls}>${escapeHtml(value)}</td>`;
+            })
+            .join("")}
+        </tr>
+      `;
+    })
+    .join("");
+
+  return `<table class="tablelist">
+    <thead>${head}</thead>
+    <tbody>${body}</tbody>
+  </table>`;
+}
+
+async function loadStats() {
+  const days = Number(daysSelect.value || 30);
+  showToast("");
+
+  try {
+    const [sumR, dayR, songsR, artistsR] = await Promise.all([
+      fetch(`/api/admin/stats/summary?days=${days}`).then((r) => r.json()),
+      fetch(`/api/admin/stats/by-day?days=${days}`).then((r) => r.json()),
+      fetch(`/api/admin/stats/top-songs?days=${days}`).then((r) => r.json()),
+      fetch(`/api/admin/stats/top-artists?days=${days}`).then((r) => r.json()),
+    ]);
+
+    if (!sumR?.ok) throw new Error(sumR?.error || "Error cargando stats");
+
+    sumTotal.textContent = sumR.total ?? 0;
+    sumP1.textContent = sumR.piso1 ?? 0;
+    sumP2.textContent = sumR.piso2 ?? 0;
+
+    byDayBox.innerHTML = asTable(dayR?.rows || [], [
+      { key: "day", label: "Día" },
+      { key: "plays", label: "Reproducidas", right: true },
+    ]);
+
+    topSongsBox.innerHTML = asTable(songsR?.rows || [], [
+      { key: "song", label: "Canción" },
+      { key: "artist", label: "Artista" },
+      { key: "plays", label: "Veces", right: true },
+    ]);
+
+    topArtistsBox.innerHTML = asTable(artistsR?.rows || [], [
+      { key: "artist", label: "Artista" },
+      { key: "plays", label: "Veces", right: true },
+    ]);
+  } catch (e) {
+    showToast(e.message || "Error cargando estadísticas");
+  }
+}
+
+refreshStatsBtn.addEventListener("click", loadStats);
+daysSelect.addEventListener("change", loadStats);
+loadStats();
+
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
