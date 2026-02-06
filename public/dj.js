@@ -8,24 +8,19 @@ const countBadge = document.getElementById("countBadge");
 const refreshBtn = document.getElementById("refreshBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
-// ✅ NUEVO: botón "Pedidos" + dot (verde/rojo)
-const ordersBtn = document.getElementById("ordersBtn");
+const ordersBar = document.getElementById("ordersBar"); // franja inferior
 const ordersDot = document.getElementById("ordersDot");
+const ordersLabel = document.getElementById("ordersLabel");
+
+const logoutBtn = document.getElementById("logoutBtn");
 
 const socket = io();
 
-/**
- * Anti-parpadeo al cargar:
- * - Primera actualización NO anima
- * - Luego, solo nuevas requests
- */
 let prevIds = new Set();
 let hasBootstrapped = false;
 
-// ✅ Para que el "Recién añadido" se dispare 1 vez por request nueva
 let lastNewBadgeId = null;
 
-// ✅ Confirmación sutil inline para "Reproducida" (doble click)
 let pendingConfirmId = null;
 let confirmTimeout = null;
 
@@ -49,19 +44,34 @@ clearAllBtn?.addEventListener("click", async () => {
   }
 });
 
-// ✅ NUEVO: estado pedidos (piso1) en vivo para el DJ
-socket.on("orders:status", (st) => {
-  if (!ordersDot) return;
+// ✅ Cerrar sesión
+logoutBtn?.addEventListener("click", async () => {
+  const ok = confirm("¿Cerrar sesión del DJ?");
+  if (!ok) return;
 
+  try {
+    await fetch("/auth/logout", { method: "POST" });
+  } catch {}
+
+  location.href = "/login";
+});
+
+// ✅ estado pedidos (piso1) -> FRANJA inferior verde/roja
+socket.on("orders:status", (st) => {
   const isOpen = !!st?.piso1;
 
-  ordersDot.classList.remove("open", "closed");
-  ordersDot.classList.add(isOpen ? "open" : "closed");
-
-  // tooltip / title útil para el DJ
-  if (ordersBtn) {
-    ordersBtn.title = isOpen ? "Pedidos abiertos" : "Pedidos cerrados";
+  if (ordersDot) {
+    ordersDot.classList.remove("open", "closed");
+    ordersDot.classList.add(isOpen ? "open" : "closed");
   }
+
+  if (ordersBar) {
+    ordersBar.classList.remove("open", "closed");
+    ordersBar.classList.add(isOpen ? "open" : "closed");
+    ordersBar.title = isOpen ? "Pedidos abiertos" : "Pedidos cerrados";
+  }
+
+  if (ordersLabel) ordersLabel.textContent = "PEDIDOS";
 });
 
 function groupByTable(requests) {
@@ -85,12 +95,34 @@ function uniqueTablesInOrder(requests) {
   return out;
 }
 
+// ✅ 06 FEB 09:43 (sin segundos)
 function formatDate(iso) {
   try {
-    return new Date(iso).toLocaleString();
+    const d = new Date(iso);
+
+    const day = String(d.getDate()).padStart(2, "0");
+    const months = ["ENE","FEB","MAR","ABR","MAY","JUN","JUL","AGO","SEP","OCT","NOV","DIC"];
+    const mon = months[d.getMonth()] || "";
+
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+
+    return `${day} ${mon} ${hh}:${mm}`;
   } catch {
     return iso;
   }
+}
+
+// ✅ fallback nombre (por si tu API a veces lo manda con otro nombre)
+function getClientName(r) {
+  return (
+    r?.name ??
+    r?.client ??
+    r?.customer ??
+    r?.cliente ??
+    r?.persona ??
+    ""
+  );
 }
 
 function render(requests) {
@@ -101,16 +133,13 @@ function render(requests) {
     prevIds = currentIds;
     hasBootstrapped = true;
   } else {
-    for (const id of currentIds) {
-      if (!prevIds.has(id)) newIdSet.add(id);
-    }
+    for (const id of currentIds) if (!prevIds.has(id)) newIdSet.add(id);
     prevIds = currentIds;
   }
 
   countBadge.textContent = `${requests.length} pendientes`;
   cards.innerHTML = "";
 
-  // reset confirmación si ya no existe esa request
   if (pendingConfirmId && !currentIds.has(pendingConfirmId)) {
     pendingConfirmId = null;
     clearTimeout(confirmTimeout);
@@ -130,30 +159,25 @@ function render(requests) {
   const lastReqId = lastReq?.id ?? null;
 
   const tablesOrder = uniqueTablesInOrder(requests);
-
-  // ✅ mesa que debe sonar (la primera del panel derecho)
   const nextUpTable = tablesOrder[0];
-
-  // ✅ si la última request llegó recién (es nueva)
   const shouldShowRecien = !!(lastReqId && newIdSet.has(lastReqId));
 
-  // FIFO: primer nombre por mesa
+  // ✅ nombre por mesa (primera solicitud que llegó a esa mesa)
   const firstNameByTable = new Map();
   for (const r of requests) {
     const key = String(r.table);
-    if (!firstNameByTable.has(key)) firstNameByTable.set(key, r.name);
+    if (!firstNameByTable.has(key)) firstNameByTable.set(key, getClientName(r));
   }
 
-  // Panel derecho
+  // ✅ PANEL DERECHO: 3 spans (círculo + mesa + cliente)
   lastTables.innerHTML = tablesOrder
     .map((t, i) => {
       const name = firstNameByTable.get(String(t)) ?? "";
       return `
-        <div style="display:flex; align-items:center; gap:12px;">
-          <span>#${i + 1}. Mesa ${escapeHtml(t)}</span>
-          <span style="margin-left:auto; padding-left:14px;">${escapeHtml(
-            name
-          )}</span>
+        <div>
+          <span>#${i + 1}</span>
+          <span>Mesa ${escapeHtml(t)}</span>
+          <span>${escapeHtml(name)}</span>
         </div>
       `;
     })
@@ -163,11 +187,8 @@ function render(requests) {
 
   for (const table of tablesOrder) {
     const list = grouped.get(table) || [];
-
-    // mesa nueva → borde azul
     const hasNewForThisTable = list.some((r) => newIdSet.has(r.id));
 
-    // última canción nueva de esta mesa
     let lastNewId = null;
     for (let i = list.length - 1; i >= 0; i--) {
       if (newIdSet.has(list[i].id)) {
@@ -178,8 +199,6 @@ function render(requests) {
 
     const isLastTable = String(table) === String(lastTable);
     const isNextUp = String(table) === String(nextUpTable);
-
-    // ✅ "Recién añadido" solo si: es la última mesa y la última request llegó recién
     const showRecienBadge = isLastTable && shouldShowRecien;
 
     const card = document.createElement("div");
@@ -194,23 +213,15 @@ function render(requests) {
       <div class="row">
         <div class="title">
           Mesa ${escapeHtml(table)}
-          ${
-            isNextUp
-              ? `<span class="next-dot" aria-label="Siguiente"></span>`
-              : ``
-          }
+          ${isNextUp ? `<span class="next-dot" aria-label="Siguiente"></span>` : ``}
         </div>
 
         <div style="display:flex; align-items:center; gap:10px;">
           ${
             isLastTable
               ? `
-                <span
-                  class="status ultima ${
-                    showRecienBadge ? "ultima-new" : "ultima-faded"
-                  }"
-                  data-lastbadge-id="${escapeHtml(lastReqId)}"
-                >
+                <span class="status ultima ${showRecienBadge ? "ultima-new" : "ultima-faded"}"
+                      data-lastbadge-id="${escapeHtml(lastReqId)}">
                   ${showRecienBadge ? "Recién añadido" : "ÚLTIMA MESA"}
                 </span>
               `
@@ -223,37 +234,25 @@ function render(requests) {
         ${list
           .map((r, idx) => {
             const isLastNew = r.id === lastNewId;
-
-            // Estado visual del botón si está en modo confirmación
             const confirmClass = pendingConfirmId === r.id ? " confirm" : "";
+            const client = getClientName(r);
 
             return `
               <div class="song-item ${isLastNew ? "new-song" : ""}">
-                <div class="song-line">
-                  <div class="song-meta">
-                    <b>Canción:</b> ${escapeHtml(r.song)}
-                  </div>
 
+                <!-- ✅ NOMBRE ARRIBA (SIN TEXTO ANTERIOR) -->
+                <div class="song-client">${escapeHtml(client)}</div>
+
+                <div class="song-line">
+                  <div class="song-meta"><b>Canción:</b> ${escapeHtml(r.song)}</div>
                   <span class="song-index">#${idx + 1}</span>
                 </div>
 
-                <div class="song-meta">
-                  <b>Artista:</b> ${escapeHtml(r.artist)}
-                </div>
-
-                <div class="song-meta">
-                  <b>Cliente:</b> ${escapeHtml(r.name)}
-                </div>
+                <div class="song-meta"><b>Artista:</b> ${escapeHtml(r.artist)}</div>
 
                 <div class="song-footer">
                   <div class="song-time">${escapeHtml(formatDate(r.createdAt))}</div>
-
-                  <!-- ✅ Botón abajo al lado de la hora (no rompe los textos) -->
-                  <button class="icon-btn played-btn${confirmClass}" data-id="${escapeHtml(
-                    r.id
-                  )}" title="Marcar como reproducida">
-                    ✓
-                  </button>
+                  <button class="icon-btn played-btn${confirmClass}" data-id="${escapeHtml(r.id)}" title="Marcar como reproducida">✓</button>
                 </div>
               </div>
             `;
@@ -267,7 +266,6 @@ function render(requests) {
     cards.appendChild(card);
   }
 
-  // ✅ Cambiar "Recién añadido" -> "ÚLTIMA MESA" tenue después de 4s
   if (shouldShowRecien && lastReqId && lastNewBadgeId !== lastReqId) {
     lastNewBadgeId = lastReqId;
 
@@ -280,18 +278,11 @@ function render(requests) {
       el.classList.remove("ultima-new");
       el.classList.add("ultima-faded");
 
-      // apagar borde parpadeante al mismo tiempo
-      const cardEl = el.closest(".table-card");
-      cardEl?.classList.remove("recien-card");
+      el.closest(".table-card")?.classList.remove("recien-card");
     }, 4000);
   }
 }
 
-/**
- * ✅ Manejo de click del botón ícono (doble click confirma)
- * - 1er click: se pone en modo confirmación (sutil)
- * - 2do click (antes de 2.5s): elimina
- */
 cards.addEventListener("click", async (e) => {
   const btn = e.target.closest(".played-btn");
   if (!btn) return;
@@ -299,35 +290,26 @@ cards.addEventListener("click", async (e) => {
   const id = btn.getAttribute("data-id");
   if (!id) return;
 
-  // Segundo click (confirmado)
   if (pendingConfirmId === id) {
     clearTimeout(confirmTimeout);
     confirmTimeout = null;
     pendingConfirmId = null;
 
-    // bloqueo visual inmediato
     btn.disabled = true;
     btn.classList.remove("confirm");
-    btn.textContent = "…";
+    btn.textContent = "⏱️";
 
     try {
       const res = await fetch(`/api/requests/${id}`, { method: "DELETE" });
-
-      // ✅ fetch NO lanza error si es 500/404. Hay que validar.
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || `Error ${res.status}`);
       }
 
-      // ✅ FALLBACK: si el socket no actualiza, recargamos lista por HTTP
       const listRes = await fetch("/api/requests");
       const listData = await listRes.json().catch(() => null);
-      if (listRes.ok && listData?.ok) {
-        render(listData.requests || []);
-      }
-      // si el socket llega, igual re-renderiza y queda todo sincronizado
+      if (listRes.ok && listData?.ok) render(listData.requests || []);
     } catch (err) {
-      // si falla, vuelve a estado normal
       btn.disabled = false;
       btn.textContent = "✓";
       alert(err?.message || "No se pudo marcar como reproducida. Revisa conexión.");
@@ -335,10 +317,8 @@ cards.addEventListener("click", async (e) => {
     return;
   }
 
-  // Primer click → activar confirmación para este id
   pendingConfirmId = id;
 
-  // limpiar confirmación anterior (si existía)
   document.querySelectorAll(".played-btn.confirm").forEach((b) => {
     if (b !== btn) b.classList.remove("confirm");
   });
@@ -347,7 +327,6 @@ cards.addEventListener("click", async (e) => {
 
   clearTimeout(confirmTimeout);
   confirmTimeout = setTimeout(() => {
-    // si sigue siendo el mismo id, se cancela
     if (pendingConfirmId === id) pendingConfirmId = null;
     btn.classList.remove("confirm");
   }, 2500);

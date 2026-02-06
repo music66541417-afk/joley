@@ -8,6 +8,9 @@ html, body { overflow-x: hidden; }
   --muted: rgba(255,255,255,0.72);
   --danger: #ff5b5b;
   --ok: #4ee18a;
+
+  /* ✅ fuente NEW ROCK (Google Fonts = New Rocker) */
+  --font-rock: "New Rocker", system-ui, sans-serif;
 }
 
 *{
@@ -22,13 +25,11 @@ body{
   margin:0;
   color: var(--text);
 
-  /* FOTO DE FONDO */
   background-image: url("/img/fondo.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 
-  /* oscurecer para que se lea bien */
   background-color: rgba(0, 0, 0, 0.65);
   background-blend-mode: darken;
 
@@ -38,16 +39,19 @@ body{
 
 a{ color: inherit; }
 
-/* ✅ Contenedor (sin barra horizontal y con aire a la derecha) */
 .container{
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
   padding: 16px;
-  padding-right: 28px; /* clave para que NO se corte el panel derecho */
+  padding-right: 28px;
 }
 
-/* ✅ Topbar */
+/* ✅ deja espacio abajo para la FRANJA */
+.dj .container{
+  padding-bottom: 64px;
+}
+
 .topbar{
   display:flex;
   justify-content:space-between;
@@ -56,7 +60,6 @@ a{ color: inherit; }
   padding:16px;
   border-radius:14px;
 
-  /* glass */
   background: rgba(0,0,0,0.60);
   backdrop-filter: blur(3px);
 }
@@ -65,7 +68,7 @@ a{ color: inherit; }
   display:flex;
   align-items:center;
   gap:10px;
-  flex-wrap: wrap; /* por si la ventana es angosta */
+  flex-wrap: wrap;
 }
 
 .badge{
@@ -104,20 +107,18 @@ a{ color: inherit; }
 }
 .btn-danger:hover{ filter: brightness(1.15); }
 
-/* ✅ Grid principal: panel derecho MÁS angosto y sin corte */
 .grid{
   display:grid;
-  grid-template-columns: 1fr 200px; /* ⬅️ panel derecho angosto */
+  grid-template-columns: 1fr 200px;
   gap:16px;
   width:100%;
 }
 
-/* En pantallas chicas, panel abajo */
 @media (max-width: 950px){
   .grid{ grid-template-columns: 1fr; }
 }
 
-/* ✅ Bloques con glass */
+/* marco base (luego hacemos override para solicitudes) */
 .requests-area,
 .panel,
 .card{
@@ -127,14 +128,12 @@ a{ color: inherit; }
   backdrop-filter: blur(3px);
 }
 
-/* ✅ Panel derecho: evitar que se “salga” */
 .panel{
   width:100%;
   max-width: 240px;
   padding:16px;
 }
 
-/* ✅ Área solicitudes */
 .requests-area{
   padding:16px;
   min-height: 420px;
@@ -148,14 +147,16 @@ a{ color: inherit; }
 
 .muted{ color: var(--muted); font-size: 12px; }
 
-/* ✅ Cards: 5 columnas, pero con MIN ancho para que no queden angostas */
+/* =========================
+   FIX: grilla original de .cards
+========================= */
 .cards{
-  display:grid;
-  gap:14px;
+  display: grid;
+  gap: 14px;
   grid-template-columns: repeat(5, minmax(260px, 1fr));
+  align-items: start;
 }
 
-/* Breakpoints */
 @media (max-width: 1500px){
   .cards{ grid-template-columns: repeat(4, minmax(260px, 1fr)); }
 }
@@ -169,7 +170,6 @@ a{ color: inherit; }
   .cards{ grid-template-columns: 1fr; }
 }
 
-/* ✅ Tarjeta mesa */
 .card{
   padding:16px;
   display:flex;
@@ -177,11 +177,39 @@ a{ color: inherit; }
   gap:10px;
 }
 
+/* =========================
+   MESA (CARD) – estilo pro + borde soft
+========================= */
 .table-card{
+  width: 100%;
+  max-width: none;
   min-height: 300px;
+
+  background: rgba(0,0,0,.55);
+
+  /* ✅ borde MUY sutil */
+  border: 1px solid rgba(200,165,122,0.22);
+
+  /* sombra pro */
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.45),
+    inset 0 0 0 1px rgba(255,255,255,0.02);
+
+  transition: border-color .25s ease, box-shadow .25s ease, transform .2s ease;
 }
 
-/* Header fila */
+/* Que el contenido de canciones tenga un "bloque" */
+.song-list{
+  padding-top: 6px;
+}
+
+.song-item{
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+}
+
 .row{
   display:flex;
   justify-content:space-between;
@@ -189,7 +217,6 @@ a{ color: inherit; }
   align-items:center;
 }
 
-/* ✅ FIX: title + punto verde (UNA sola definición) */
 .title{
   font-weight:700;
   font-size: 14px;
@@ -198,7 +225,34 @@ a{ color: inherit; }
   gap:8px;
 }
 
-/* ✅ FIX: Punto verde sutil (UNA sola definición, sin margin-left:auto) */
+/* ✅ NEW ROCK SOLO en DJ (títulos/mesas/badge) */
+.dj .title,
+.dj .table-card .title,
+.dj .status.ultima{
+  font-family: var(--font-rock);
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+/* ✅ Tamaños (para que NO se vea chico) */
+.dj .topbar .title{
+  font-size: 22px;
+  letter-spacing: 1px;
+}
+
+/* ✅ Mesa grande */
+.dj .table-card .title{
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+}
+
+.dj .status.ultima{
+  font-size: 12px;
+}
+
+/* Punto verde sutil */
 .next-dot{
   width: 8px;
   height: 8px;
@@ -209,14 +263,13 @@ a{ color: inherit; }
   opacity: .75;
 }
 
-/* parpadeo MUY suave */
 @keyframes pulseNext{
   0%   { opacity: .35; transform: scale(.92); }
   50%  { opacity: .90; transform: scale(1);   }
   100% { opacity: .35; transform: scale(.92); }
 }
 
-/* ✅ FIX: Badge ÚLTIMA MESA / Recién añadido (UNA sola base coherente) */
+/* Badge última mesa (RECENTE = amarillo) */
 .status.ultima{
   font-size: 10.5px;
   padding: 3px 8px;
@@ -231,9 +284,18 @@ a{ color: inherit; }
   text-shadow: 0 1px 0 rgba(255,255,255,.25);
 }
 
+/* ✅ ÚLTIMA MESA normal = café claro sutil */
+.status.ultima-faded{
+  color: rgba(200,165,122,0.85);
+  background: rgba(200,165,122,0.10);
+  border: 1px solid rgba(200,165,122,0.35);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+  opacity: 0.85;
+  filter: none;
+}
+
 .status.pending{ color: var(--danger); }
 
-/* ✅ Lista interna con scroll sutil */
 .song-list{
   display:grid;
   gap:10px;
@@ -242,11 +304,10 @@ a{ color: inherit; }
   padding-right:8px;
   -webkit-overflow-scrolling: touch;
 
-  scrollbar-width: thin; /* Firefox */
+  scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,.22) transparent;
 }
 
-/* Chrome / Edge scrollbar sutil */
 .song-list::-webkit-scrollbar{ width: 8px; }
 .song-list::-webkit-scrollbar-track{ background: transparent; }
 .song-list::-webkit-scrollbar-thumb{
@@ -259,44 +320,6 @@ a{ color: inherit; }
   background: rgba(255,255,255,0.28);
 }
 
-/* ✅ Botón Reproducida abajo (ya no lo usas, pero lo dejamos por si acaso) */
-.btn-mini{
-  width: 100%;
-  margin-top: 10px;
-  padding: 8px 10px;
-  font-size: 12px;
-  border-radius: 10px;
-  border:1px solid var(--border);
-  background: rgba(0,0,0,0.35);
-  color: var(--text);
-  cursor:pointer;
-}
-.btn-mini:hover{ filter: brightness(1.1); }
-
-/* Form (usuario) por si lo usas */
-.form{
-  margin-top:16px;
-  display:grid;
-  gap:10px;
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:16px;
-  background: rgba(0,0,0,0.60);
-  backdrop-filter: blur(3px);
-}
-
-label{ font-size: 13px; color: var(--muted); display:block; margin-bottom:6px; }
-
-input{
-  width:100%;
-  padding:12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background: rgba(0,0,0,0.35);
-  color: var(--text);
-  outline:none;
-}
-
 .help{ font-size: 12px; color: var(--muted); }
 .toast{ margin-top:10px; font-size: 13px; color: var(--muted); }
 
@@ -306,7 +329,6 @@ input{
   color: rgba(255,255,255,0.65);
 }
 
-/* ✅ NUEVO: fila inferior (fecha/hora + botón) */
 .song-footer{
   display:flex;
   align-items:center;
@@ -316,39 +338,16 @@ input{
   padding-top: 0;
 }
 
-/* ✅ Parpadeo azul al llegar solicitud nueva */
 @keyframes pulseBlue {
-  0%   { box-shadow: 0 0 0 rgba(255, 200, 80, 0); border-color: var(--border); }
-  20%  { box-shadow: 0 0 18px rgba(255, 200, 80, 0.55); border-color: rgba(255,200,80,0.95); }
-  50%  { box-shadow: 0 0 0 rgba(255, 200, 80, 0); border-color: var(--border); }
-  80%  { box-shadow: 0 0 18px rgba(255, 200, 80, 0.55); border-color: rgba(255,200,80,0.95); }
-  100% { box-shadow: 0 0 0 rgba(255, 200, 80, 0); border-color: var(--border); }
+  0%   { box-shadow: 0 0 0 rgba(255, 200, 80, 0); border-color: rgba(200,165,122,0.22); }
+  20%  { box-shadow: 0 0 18px rgba(255, 200, 80, 0.55); border-color: rgba(255,200,80,0.55); }
+  50%  { box-shadow: 0 0 0 rgba(255, 200, 80, 0); border-color: rgba(200,165,122,0.22); }
+  80%  { box-shadow: 0 0 18px rgba(255, 200, 80, 0.55); border-color: rgba(255,200,80,0.55); }
+  100% { box-shadow: 0 0 0 rgba(255, 200, 80, 0); border-color: rgba(200,165,122,0.22); }
 }
 
-.flash-new {
-  animation: pulseBlue 3.5s ease-in-out;
-}
+.flash-new { animation: pulseBlue 3.5s ease-in-out; }
 
-/* ✅ Parpadeo solo del título "Mesa XXX" */
-.flash-title {
-  animation: pulseBlueText 3.5s ease-in-out;
-}
-
-@keyframes pulseBlueText {
-  0%   { color: var(--text); text-shadow: none; }
-  20%  { color: rgb(120, 200, 255); text-shadow: 0 0 10px rgba(60,170,255,0.6); }
-  50%  { color: var(--text); text-shadow: none; }
-  80%  { color: rgb(120, 200, 255); text-shadow: 0 0 10px rgba(60,170,255,0.6); }
-  100% { color: var(--text); text-shadow: none; }
-}
-
-/* ✅ Resaltar SOLO las etiquetas (Canción/Nombre/Artista) cuando es nuevo */
-.flash-labels b{
-  color: rgb(160, 220, 255);
-  text-shadow: 0 0 8px rgba(60,170,255,0.5);
-}
-
-/* ✅ FIX: Canción + # (alineado) y badge # estilo pill (UNA sola versión) */
 .song-line{
   display:flex;
   align-items:center;
@@ -356,84 +355,114 @@ input{
   gap:10px;
 }
 
+/* =========================
+   ÍNDICE CANCIÓN (#1 #2 #3) – café claro sutil
+========================= */
 .song-index{
-  flex: 0 0 auto;
-  font-size: 11px;
-  color: rgba(255,255,255,0.65);
-  padding: 2px 8px;
-  border: 1px solid rgba(255,255,255,0.18);
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 9px;
   border-radius: 999px;
-  background: rgba(0,0,0,0.22);
+
+  color: rgba(200,165,122,0.75);
+  background: rgba(200,165,122,0.08);
+  border: 1px solid rgba(200,165,122,0.25);
+
+  letter-spacing: .2px;
   line-height: 1.2;
   white-space: nowrap;
+
+  text-shadow: 0 1px 0 rgba(0,0,0,0.6);
 }
 
-/* =================================================
-   SOLO la última canción:
-   pintar SOLO los parámetros (labels)
-   Canción / Nombre / Artista
-================================================= */
 .song-item.new-song .song-meta b {
   color: rgb(255, 215, 120);
   text-shadow: 0 0 8px rgba(255,200,80,0.6);
 }
 
-/* Canción / Artista / Cliente en estado normal */
 .song-item .song-meta b {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* asegurar que el valor NO herede */
 .song-item.new-song .song-meta {
   color: var(--text);
 }
 
-.status.last{
-  color: var(--ok);
-  border-color: rgba(78, 225, 138, 0.95);
-  background: rgba(78, 225, 138, 0.10);
-}
+/* =====================================================
+   ✅ ÚLTIMO PEDIDO: PANEL DERECHO "MESA POR ORDEN" PRO
+   (como tu primera imagen: #1 en círculo + Mesa grande)
+===================================================== */
 
-/* ✅ Borde de la mesa más oscuro que el contenedor */
-.table-card{
-  border-color: rgba(200,165,122,0.55);
-}
-
-/* Panel derecho: filas más limpias */
 #lastTables > div{
-  border-radius: 10px;
-  padding: 6px 8px;
-  border: 1px solid rgba(255,255,255,.07);
-  background: rgba(255,255,255,.02);
+  display:flex;
+  align-items:center;
+  gap:12px;
+
+  padding: 10px 14px;
+  border-radius: 14px;
+
+  background: rgba(0,0,0,0.55);
+
+  /* borde café sutil */
+  border: 1px solid rgba(200,165,122,0.35);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.02),
+    0 8px 20px rgba(0,0,0,0.45);
 }
 
-/* Primera mesa (la que sigue) */
-#lastTables > div:first-child{
-  background: rgba(200,165,122,.14);
-  border-color: rgba(200,165,122,.35);
+/* #1 en circulito */
+#lastTables > div span:first-child{
+  min-width: 26px;
+  height: 26px;
+  border-radius: 999px;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size: 12px;
   font-weight: 900;
+
+  color: rgba(255,255,255,0.92);
+  background: rgba(0,0,0,0.65);
+  border: 1px solid rgba(200,165,122,0.45);
+
+  flex: 0 0 auto;
 }
 
-/* Tarjeta "mesa siguiente" (la que está #1 en el panel derecho) */
+/* "Mesa 23" grande y clara */
+#lastTables > div span:nth-child(2){
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: .5px;
+  color: rgba(255,255,255,0.95);
+}
+
+/* cliente a la derecha, sutil */
+#lastTables > div span:last-child{
+  margin-left:auto;
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+}
+
+/* La primera fila destacada (igual a la referencia) */
+#lastTables > div:first-child{
+  border-color: rgba(200,165,122,0.65);
+  background: rgba(200,165,122,0.12);
+}
+
+/* ===================================================== */
+
 .table-card.next-up{
-  border-color: rgba(200,165,122,.85) !important;
+  border-color: rgba(200,165,122,.55) !important;
   box-shadow: 0 0 0 2px rgba(200,165,122,.10);
   position: relative;
 }
 
-/* ✅ FIX: si antes existía "SIGUE", lo dejamos desactivado (UNA sola regla) */
-.table-card.next-up::after{
-  content: none !important;
-}
+.table-card.next-up::after{ content: none !important; }
 
-/* ===============================
-   BADGE ULTIMA MESA / RECIEN AÑADIDO
-=============================== */
-
-/* "Recién añadido" (4s, parpadeo dorado) */
-.status.ultima-new{
-  animation: ultimaBlink 0.9s ease-in-out infinite;
-}
+.status.ultima-new{ animation: ultimaBlink 0.9s ease-in-out infinite; }
 
 @keyframes ultimaBlink{
   0%   { opacity: .55; }
@@ -441,58 +470,27 @@ input{
   100% { opacity: .55; }
 }
 
-/* luego queda "ÚLTIMA MESA" tenue */
-.status.ultima-faded{
-  opacity: 0.55;
-  filter: grayscale(30%);
-}
-
-/* Borde parpadeando mientras dice "Recién añadido" */
-.table-card.recien-card{
-  animation: recienBorder 0.9s ease-in-out infinite;
-}
+.table-card.recien-card{ animation: recienBorder 0.9s ease-in-out infinite; }
 
 @keyframes recienBorder{
-  0%{
-    box-shadow: 0 0 0 2px rgba(255,215,120,.05);
-    border-color: rgba(255,215,120,.25);
-  }
-  50%{
-    box-shadow: 0 0 0 2px rgba(255,215,120,.22);
-    border-color: rgba(255,215,120,.75);
-  }
-  100%{
-    box-shadow: 0 0 0 2px rgba(255,215,120,.05);
-    border-color: rgba(255,215,120,.25);
-  }
+  0%{ box-shadow: 0 0 0 2px rgba(255,215,120,.05); border-color: rgba(255,215,120,.25); }
+  50%{ box-shadow: 0 0 0 2px rgba(255,215,120,.22); border-color: rgba(255,215,120,.55); }
+  100%{ box-shadow: 0 0 0 2px rgba(255,215,120,.05); border-color: rgba(255,215,120,.25); }
 }
 
-/* ===============================
-   Botón ícono Reproducida (VERDE) + confirmación inline (VERDE más oscuro)
-=============================== */
-/* ===============================
-   Botón ícono Reproducida (VERDE oscuro) + confirmación inline (AMARILLO)
-=============================== */
-
-/* ✅ Botón normal: verde más oscuro y más chico */
 .icon-btn{
-  width: 24px;              /* antes 34px */
-  height: 24px;             /* antes 34px */
+  width: 24px;
+  height: 24px;
   border-radius: 8px;
-
-  /* verde más oscuro (menos saturado) */
   border: 1.5px solid rgba(46, 160, 102, 0.95);
   background: rgba(46, 160, 102, 0.55);
-
   color: rgba(10, 18, 14, 0.95);
   font-weight: 900;
-  font-size: 13px;          /* mantiene el check legible */
-
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-
   transition: transform .08s ease, filter .12s ease, box-shadow .12s ease;
 }
 
@@ -509,7 +507,6 @@ input{
   cursor: not-allowed;
 }
 
-/* ✅ 1er click (confirmación): amarillo parpadeando */
 .icon-btn.confirm{
   border-color: rgba(255, 215, 120, 0.95);
   background: rgba(255, 215, 120, 0.28);
@@ -523,12 +520,6 @@ input{
   100% { box-shadow: 0 0 0 0 rgba(255,215,120,0); }
 }
 
-/* ===============================
-   NUEVO: Dot "Pedidos" (Admin abre/cierra)
-   - Verde = abierto
-   - Rojo  = cerrado
-   Parpadeo similar al next-dot
-=============================== */
 .orders-dot{
   width: 10px;
   height: 10px;
@@ -553,4 +544,303 @@ input{
   0%   { opacity: .35; transform: scale(.92); }
   50%  { opacity: 1;   transform: scale(1);   }
   100% { opacity: .35; transform: scale(.92); }
+}
+
+/* ✅ Quitar borde SOLO a los botones del header */
+.top-actions .btn{
+  border: none !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.top-actions .badge{
+  border: none !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+/* =========================
+   TÍTULO "SOLICITUDES" PRO: blanco + detalle amarillo
+========================= */
+.requests-area .h2{
+  position: relative;
+  padding-left: 14px;
+  font-size: 16px;
+  font-weight: 900;
+  color: rgba(200,165,122,0.9);
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+.requests-area .h2::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 70%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f7d27a, #d7a23d);
+}
+
+/* =========================
+   OVERRIDE CONTORNO GRANDE (SOLICITUDES) – soft
+========================= */
+.requests-area{
+  border: 1px solid rgba(200,165,122,0.12);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.02),
+    0 8px 24px rgba(0,0,0,0.45);
+}
+
+/* =========================
+   FRANJA INFERIOR (tipo "Servidor online") – PEDIDOS
+   (usa id="ordersBar" desde el HTML y open/closed desde JS)
+========================= */
+.orders-strip{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+
+  height: 40px;
+  display: flex;
+  align-items: center;
+
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+
+  border-top: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 -10px 24px rgba(0,0,0,0.55);
+}
+
+.orders-strip-inner{
+  width: 100%;
+  margin: 0;
+  padding: 0 14px;
+
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.orders-strip #ordersLabel{
+  font-weight: 900;
+  letter-spacing: .9px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.85);
+}
+
+.orders-strip.open{
+  border-top-color: rgba(78,225,138,0.22);
+}
+.orders-strip.closed{
+  border-top-color: rgba(255,91,91,0.22);
+}
+
+/* =========================
+   ANIMACIÓN SUAVE: entrada + glow
+========================= */
+@keyframes softIn{
+  from{
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+    filter: blur(1px);
+  }
+  to{
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.table-card.flash-new{
+  animation: softIn 280ms ease-out both, pulseBlue 3.5s ease-in-out;
+}
+
+/* =========================
+   ANIMACIÓN SUAVE SOLO DEL TEMA NUEVO
+========================= */
+@keyframes softLine{
+  from{ opacity: 0; transform: translateY(6px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+@keyframes microPop{
+  0%   { transform: scale(0.995); }
+  60%  { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+.song-item.new-song{
+  animation: softLine 220ms ease-out both, microPop 260ms ease-out both;
+}
+
+
+/* =========================================
+   ✅ FIX FORMULARIOS CLIENTE (INDEX / PISO2)
+   (no afecta DJ porque exige body sin .dj)
+========================================= */
+
+body:not(.dj) .form{
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(200,165,122,0.35);
+  border-radius: 14px;
+  padding: 16px;
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(3px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+}
+
+body:not(.dj) label{
+  font-size: 13px;
+  color: rgba(255,255,255,0.72);
+  display: block;
+  margin-bottom: 6px;
+}
+
+body:not(.dj) input{
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(200,165,122,0.45);
+  background: rgba(0,0,0,0.38);
+  color: #fff;
+  outline: none;
+}
+
+body:not(.dj) input:focus{
+  border-color: rgba(200,165,122,0.75);
+  box-shadow: 0 0 0 3px rgba(200,165,122,0.10);
+}
+
+/* =========================================
+   DJ – PANEL DERECHO "N° MESA POR ORDEN"
+   BORDE ULTRA SOFT (sin marco café duro)
+========================================= */
+
+.dj .panel{
+  /* quitamos el borde café fuerte */
+  border: 1px solid rgba(200,165,122,0.12);
+
+  /* look flotante, elegante */
+  background: rgba(0,0,0,0.55);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.02),
+    0 10px 26px rgba(0,0,0,0.45);
+}
+
+
+/* =====================================================
+   FIX: "next-up" NO debe aclarar el borde de la mesa
+   (se mantiene el punto verde, pero el borde queda igual)
+===================================================== */
+
+.dj .table-card{
+  border-color: rgba(200,165,122,0.22) !important;
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.45),
+    inset 0 0 0 1px rgba(255,255,255,0.02) !important;
+}
+
+.dj .table-card.next-up{
+  border-color: rgba(200,165,122,0.22) !important;
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.45),
+    inset 0 0 0 1px rgba(255,255,255,0.02) !important;
+}
+
+/* =========================================
+   TÍTULO PANEL DERECHO ("N° MESA POR ORDEN")
+   mismo formato que "SOLICITUDES"
+========================================= */
+.panel .h2{
+  position: relative;
+  padding-left: 14px;
+  font-size: 16px;
+  font-weight: 900;
+  color: rgba(200,165,122,0.9);   /* ✅ café claro */
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+.panel .h2::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 70%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f7d27a, #d7a23d); /* ✅ palito amarillo */
+}
+
+/* =========================
+   PANEL DERECHO – AJUSTE DE JERARQUÍA
+   Persona > Mesa
+========================= */
+
+/* contenedor de cada fila */
+#lastTables > div{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* #1 circulito (igual, no tocamos) */
+#lastTables > div span:first-child{
+  font-size:  11px;
+}
+
+/* 👉 Mesa XX (más pequeña, café claro) */
+#lastTables > div span:nth-child(2){
+  font-size: 12.5px;                 /* más chico */
+  font-weight: 700;
+  color: rgba(200,165,122,0.85);   /* café claro */
+  letter-spacing: .3px;
+}
+
+/* 👉 Nombre persona (más grande, protagonista) */
+#lastTables > div span:last-child{
+  font-size: 13px;                 /* más grande */
+  font-weight: 900;
+  color: rgba(255,255,255,0.95);   /* blanco dominante */
+  letter-spacing: .2px;
+}
+
+
+/* =========================
+   PANEL DERECHO – filas sutiles (SIN borde)
+========================= */
+#lastTables > div{
+  border: none;                         /* ❌ quita borde */
+  background: rgba(255,255,255,0.03);   /* fondo casi invisible */
+  border-radius: 999px;                 /* mantiene forma pastilla */
+  padding: 6px 12px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+
+#lastTables > div:first-child{
+  background: rgba(200,165,122,0.10);
+  box-shadow: inset 0 0 0 1px rgba(200,165,122,0.18);
+}
+
+/* Nombre del cliente arriba */
+.song-client{
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: .6px;
+  margin-bottom: 6px;
+
+  color: rgba(255,255,255,0.95);
+
+  /* look elegante */
+  text-transform: uppercase;
+}
+
+/* Si es canción recién añadida, brilla un poco */
+.song-item.new-song .song-client{
+  color: rgb(255,215,120);
+  text-shadow: 0 0 8px rgba(255,200,80,0.45);
 }
