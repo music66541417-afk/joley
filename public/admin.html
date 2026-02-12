@@ -3,32 +3,188 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Admin - Control & Estadísticas</title>
+  <title>Panel Admin</title>
   <link rel="stylesheet" href="/styles.css">
-  <style>
-    .switch{ position:relative; width:52px; height:28px; display:inline-block; }
-    .switch input{ display:none; }
-    .slider{ position:absolute; cursor:pointer; inset:0; background:rgba(255,255,255,0.14); border:1px solid var(--border); border-radius:999px; transition:.2s; }
-    .slider:before{ content:""; position:absolute; height:22px; width:22px; left:3px; top:2px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.18); border-radius:999px; transition:.2s; }
-    input:checked + .slider{ background:rgba(78,225,138,0.16); border-color:rgba(78,225,138,0.75); }
-    input:checked + .slider:before{ transform:translateX(24px); background:rgba(78,225,138,0.45); border-color:rgba(78,225,138,0.75); }
 
-    .admin-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
-    @media (max-width: 900px){ .admin-grid{ grid-template-columns:1fr; } }
+<style>
+  /* ===== switch ===== */
+  .switch{ position:relative; width:52px; height:28px; display:inline-block; }
+  .switch input{ display:none; }
+  .slider{ position:absolute; cursor:pointer; inset:0; background:rgba(255,255,255,0.14); border:1px solid var(--border); border-radius:999px; transition:.2s; }
+  .slider:before{ content:""; position:absolute; height:22px; width:22px; left:3px; top:2px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.18); border-radius:999px; transition:.2s; }
+  input:checked + .slider{ background:rgba(78,225,138,0.16); border-color:rgba(78,225,138,0.75); }
+  input:checked + .slider:before{ transform:translateX(24px); background:rgba(78,225,138,0.45); border-color:rgba(78,225,138,0.75); }
 
-    .rowline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
-    .big{ font-size:28px; font-weight:900; letter-spacing:.5px; }
+  .admin-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+  @media (max-width: 900px){ .admin-grid{ grid-template-columns:1fr; } }
 
-    .stats-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; }
-    .select{ background: rgba(0,0,0,0.35); border:1px solid var(--border); color: var(--text); padding:8px 10px; border-radius:10px; }
-    .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px; }
-    @media (max-width: 900px){ .stats-grid{ grid-template-columns:1fr; } }
+  .rowline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
+  .big{ font-size:28px; font-weight:900; letter-spacing:.5px; }
 
-    .mini{ font-size: 12px; opacity: .8; }
-    .tablelist{ width:100%; border-collapse: collapse; }
-    .tablelist td, .tablelist th{ border-bottom: 1px solid rgba(255,255,255,0.08); padding:8px 6px; text-align:left; }
-    .right{ text-align:right; }
-  </style>
+  .stats-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; }
+  .select{ background: rgba(0,0,0,0.35); border:1px solid var(--border); color: var(--text); padding:8px 10px; border-radius:10px; }
+  .stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px; }
+  @media (max-width: 900px){ .stats-grid{ grid-template-columns:1fr; } }
+
+  .mini{ font-size: 12px; opacity: .8; }
+  .tablelist{ width:100%; border-collapse: collapse; }
+  .tablelist td, .tablelist th{ border-bottom: 1px solid rgba(255,255,255,0.08); padding:8px 6px; text-align:left; }
+  .right{ text-align:right; }
+
+  /* ===== botón historial ===== */
+  .hist-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:10px 12px; border-radius:12px;
+    border:1px solid var(--border);
+    background: rgba(0,0,0,0.35);
+    color: var(--text);
+    font-weight:900;
+    cursor:pointer;
+    user-select:none;
+  }
+  .hist-btn:hover{ filter: brightness(1.1); }
+  .hist-btn:active{ transform: translateY(1px); }
+
+  /* ===== modal overlay ===== */
+  .overlay{
+    position:fixed; inset:0;
+    background: rgba(0,0,0,0.75);
+    opacity:0; pointer-events:none;
+    transition: opacity .18s ease;
+    z-index: 80;
+  }
+  .overlay.open{ opacity:1; pointer-events:auto; }
+
+  .modal{
+    position:fixed; left:50%; top:50%;
+    transform: translate(-50%, -48%) scale(0.985);
+    width:min(980px, 94vw);
+    height:min(84vh, 780px);
+    border:1px solid var(--border);
+    border-radius:18px;
+    background: rgba(0,0,0,0.92);
+    box-shadow: 0 22px 80px rgba(0,0,0,0.55);
+    opacity:0; pointer-events:none;
+    transition: opacity .18s ease, transform .18s ease;
+    z-index: 81;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+  }
+  .modal.open{
+    opacity:1; pointer-events:auto;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .modal-head{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    gap:12px; padding:14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+    background-image: radial-gradient(circle at 10% 10%, rgba(200,165,122,0.14), transparent 40%);
+  }
+  .modal-title{ font-weight:1000; letter-spacing:.5px; font-size:16px; }
+  .modal-sub{ color: var(--muted); font-size:12px; margin-top:4px; }
+
+  .modal-actions{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  .modal-body{ padding:14px 16px; overflow:auto; display:flex; flex-direction:column; gap:14px; }
+
+  .summary-grid{
+    display:grid; grid-template-columns: repeat(4, 1fr);
+    gap:10px;
+  }
+  @media (max-width: 900px){ .summary-grid{ grid-template-columns: repeat(2, 1fr); } }
+  .summary-card{
+    border:1px solid rgba(255,255,255,0.10);
+    background: rgba(0,0,0,0.35);
+    border-radius:14px;
+    padding:10px 12px;
+  }
+  .summary-card .k{ color: var(--muted); font-size:12px; }
+  .summary-card .v{ font-size:20px; font-weight:1000; margin-top:4px; }
+
+  /* ===== Historial tabla ===== */
+  .hist-table{
+    width:100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .hist-table th,.hist-table td{
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding:10px 8px;
+    vertical-align:top;
+  }
+  .hist-table th{
+    font-size:12px;
+    color:var(--muted);
+    font-weight:1000;
+    letter-spacing:.6px;
+    text-transform:uppercase;
+  }
+
+  .hist-table th:nth-child(3),
+  .hist-table td:nth-child(3),
+  .hist-table th:nth-child(4),
+  .hist-table td:nth-child(4){
+    text-align:center;
+  }
+  .hist-table th:nth-child(5),
+  .hist-table td:nth-child(5){
+    text-align:right;
+  }
+
+  .hist-table th:nth-child(1), .hist-table td:nth-child(1){ width:90px; }
+  .hist-table th:nth-child(2), .hist-table td:nth-child(2){ width:auto; padding-left:14px; }
+  .hist-table th:nth-child(3), .hist-table td:nth-child(3){ width:120px; }
+  .hist-table th:nth-child(4), .hist-table td:nth-child(4){ width:130px; }
+  .hist-table th:nth-child(5), .hist-table td:nth-child(5){ width:100px; }
+
+  .tag{
+    display:inline-flex; padding:2px 8px; border:1px solid rgba(255,255,255,0.14);
+    border-radius:999px; font-size:12px; color: var(--muted);
+    background: rgba(0,0,0,0.25);
+  }
+  .who{ font-weight:1000; }
+  .song{ font-weight:900; }
+  .muted2{ color: var(--muted); font-size:12px; }
+  .statusline{ color: var(--muted); font-size:12px; }
+
+  .closeX{
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(0,0,0,0.35);
+    color: var(--text);
+    border-radius:12px;
+    padding:10px 12px;
+    font-weight:900;
+    cursor:pointer;
+  }
+
+  @media (max-width: 600px) {
+    .hist-table{ min-width: 620px; }
+    .modal-body > div{ overflow-x: auto; }
+    #histStatus{
+      display:block;
+      width:100%;
+      max-width:100%;
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
+
+  /* ===== Resumen diario: primer día grande, resto chico ===== */
+  .byday-main td{
+    font-size: 16px;
+    font-weight: 1000;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .byday-small td{
+    font-size: 12px;
+    opacity: 0.85;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+</style>
 </head>
 
 <body>
@@ -36,7 +192,7 @@
     <div class="topbar">
       <div>
         <div class="title">🛡️ Panel Admin</div>
-        <div class="muted">Control por piso + estadísticas (se guardan en Postgres).</div>
+        <div class="muted"></div>
       </div>
 
       <div class="top-actions">
@@ -59,15 +215,18 @@
           <div style="display:flex; align-items:center; gap:10px;">
             <span class="orders-dot open" id="dot1"></span>
             <div>
-              <div style="font-weight:800;">Pedidos</div>
+              <div style="font-weight:900;">Pedidos</div>
               <div class="muted" id="label1">Abierto</div>
             </div>
           </div>
 
-          <label class="switch" title="Abrir/Cerrar pedidos Piso 1">
-            <input type="checkbox" id="toggle1" checked>
-            <span class="slider"></span>
-          </label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="hist-btn" id="histBtn1" type="button">🕘 Historial</button>
+            <label class="switch" title="Abrir/Cerrar pedidos Piso 1">
+              <input type="checkbox" id="toggle1" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -83,15 +242,18 @@
           <div style="display:flex; align-items:center; gap:10px;">
             <span class="orders-dot open" id="dot2"></span>
             <div>
-              <div style="font-weight:800;">Pedidos</div>
+              <div style="font-weight:900;">Pedidos</div>
               <div class="muted" id="label2">Abierto</div>
             </div>
           </div>
 
-          <label class="switch" title="Abrir/Cerrar pedidos Piso 2">
-            <input type="checkbox" id="toggle2" checked>
-            <span class="slider"></span>
-          </label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="hist-btn" id="histBtn2" type="button">🕘 Historial</button>
+            <label class="switch" title="Abrir/Cerrar pedidos Piso 2">
+              <input type="checkbox" id="toggle2" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -100,7 +262,7 @@
     <div class="stats-top">
       <div>
         <div class="h2">📊 Estadísticas</div>
-        <div class="muted mini">Se registran cuando el DJ marca “✓ Reproducida”.</div>
+        <div class="muted mini"></div>
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
@@ -114,32 +276,98 @@
       </div>
     </div>
 
-    <div class="stats-grid">
+    <!-- ✅ SOLO: Resumen diario -->
+    <div class="stats-grid" style="grid-template-columns: 1fr;">
       <div class="panel" style="max-width:none;">
-        <div class="h2">Resumen</div>
-        <div class="rowline"><span class="muted">Total reproducidas</span><b id="sumTotal">0</b></div>
-        <div class="rowline"><span class="muted">Piso 1</span><b id="sumP1">0</b></div>
-        <div class="rowline"><span class="muted">Piso 2</span><b id="sumP2">0</b></div>
-      </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+          <div class="h2">📅 Resumen diario</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="hist-btn" id="dayPickBtn" type="button">🗓️ Ver día</button>
+            <input class="select mono" id="dayPick" type="date" style="display:none;" />
+          </div>
+        </div>
 
-      <div class="panel" style="max-width:none;">
-        <div class="h2">Por día</div>
-        <div class="muted mini">Últimos días (desc)</div>
-        <div id="byDayBox"></div>
-      </div>
+        <!-- ✅ Oculto por defecto (lo mostramos con JS cuando elijas fecha) -->
+        <div class="statusline" id="dayPickResult" style="margin-top:6px; display:none;"></div>
 
-      <div class="panel" style="max-width:none;">
-        <div class="h2">Top canciones</div>
-        <div id="topSongsBox"></div>
-      </div>
-
-      <div class="panel" style="max-width:none;">
-        <div class="h2">Top artistas</div>
-        <div id="topArtistsBox"></div>
+        <table class="tablelist" style="margin-top:8px;">
+          <thead>
+            <tr><th>Día</th><th class="right">Reproducidas</th></tr>
+          </thead>
+          <tbody id="byDayBody"></tbody>
+        </table>
       </div>
     </div>
 
-    <div class="toast" id="toast" style="margin-top:14px;"></div>
+    <!-- ✅ SOLO: Top canciones -->
+    <div class="stats-grid" style="grid-template-columns: 1fr;">
+      <div class="panel" style="max-width:none;">
+        <div class="h2">🎵 Top canciones</div>
+        <table class="tablelist">
+          <thead>
+            <tr><th>Canción</th><th>Artista</th><th class="right">Veces</th></tr>
+          </thead>
+          <tbody id="topSongsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal Historial ===== -->
+  <div class="overlay" id="histOverlay"></div>
+
+  <div class="modal" id="histModal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="histTitle">Historial</div>
+        <div class="modal-sub" id="histSub">—</div>
+      </div>
+
+      <div class="modal-actions">
+        <input class="select mono" id="histDate" type="date" />
+        <button class="btn btn-small" id="histLoadBtn" type="button">Cargar</button>
+        <button class="closeX" id="histCloseBtn" type="button">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="statusline" id="histStatus">—</div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="k">Reproducidas</div>
+          <div class="v" id="sumPlayed">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="k">Mesas</div>
+          <div class="v" id="sumTables">0</div>
+        </div>
+        <div class="summary-card">
+          <div class="k">Espera promedio</div>
+          <div class="v" id="sumAvg">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="k">Espera máx</div>
+          <div class="v" id="sumMax">—</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="h2" style="margin: 2px 0 10px 0;">🧾 Detalle por solicitud</div>
+        <table class="hist-table">
+          <thead>
+            <tr>
+              <th>Mesa</th>
+              <th>Solicitud</th>
+              <th>Pedido</th>
+              <th>Reproducida</th>
+              <th class="right">Espera</th>
+            </tr>
+          </thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

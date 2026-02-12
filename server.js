@@ -254,6 +254,7 @@ function isClosed(nowMin, cutoffMin) {
   return nowMin >= cutoffMin && nowMin < resetMin;
 }
 
+// (queda para info /api/hours, ya NO bloquea los POST)
 function rejectIfClosedForFloor(floor) {
   const nowMin = getChileMinutesNow();
   const cutoffMin = floor === 2 ? cutoffPiso2 : cutoffPiso1;
@@ -306,6 +307,111 @@ app.get("/api/hours", (req, res) => {
 });
 
 // =======================
+// ✅ Auto-corte: la hora SOLO baja el switch del admin (una vez por día)
+// El admin puede reabrir aunque sea después del corte.
+// =======================
+function getChileDateKey() {
+  const parts = new Intl.DateTimeFormat("es-CL", {
+    timeZone: TZ_CHILE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const y = parts.find((p) => p.type === "year")?.value ?? "0000";
+  const m = parts.find((p) => p.type === "month")?.value ?? "00";
+  const d = parts.find((p) => p.type === "day")?.value ?? "00";
+  return `${y}-${m}-${d}`; // YYYY-MM-DD en Chile
+}
+
+let lastAutoClose = { piso1: null, piso2: null };
+
+async function autoCloseIfNeeded() {
+  await loadOrdersStatus();
+
+  const nowMin = getChileMinutesNow();
+  const dayKey = getChileDateKey();
+
+  const inWindowP1 = nowMin >= cutoffPiso1 && nowMin < resetMin;
+  const inWindowP2 = nowMin >= cutoffPiso2 && nowMin < resetMin;
+
+  const needsCloseP1 =
+    inWindowP1 && ordersOpen.piso1 === true && lastAutoClose.piso1 !== dayKey;
+
+  const needsCloseP2 =
+    inWindowP2 && ordersOpen.piso2 === true && lastAutoClose.piso2 !== dayKey;
+
+  if (!needsCloseP1 && !needsCloseP2) return;
+
+  const newStatus = {
+    piso1: needsCloseP1 ? false : ordersOpen.piso1,
+    piso2: needsCloseP2 ? false : ordersOpen.piso2,
+  };
+
+  try {
+    await pool.query(
+      "UPDATE orders_status SET piso1=$1, piso2=$2, updated_at=NOW() WHERE id=1",
+      [newStatus.piso1, newStatus.piso2]
+    );
+
+    ordersOpen = newStatus;
+
+    if (needsCloseP1) lastAutoClose.piso1 = dayKey;
+    if (needsCloseP2) lastAutoClose.piso2 = dayKey;
+
+    emitOrdersStatus(); // baja switch en admin + franja DJ
+  } catch (e) {
+    console.log("⚠️ autoCloseIfNeeded error:", e.message);
+  }
+}
+
+// =======================
+// ✅ NUEVO: Auto-reset diario en RESET_HHMM (ej 12:00)
+// - sube ambos switches a ABIERTO
+// - resetea lastAutoClose para el nuevo ciclo
+// =======================
+let lastAutoReset = null;
+
+async function autoResetIfNeeded() {
+  await loadOrdersStatus();
+
+  const nowMin = getChileMinutesNow();
+  const dayKey = getChileDateKey();
+
+  // ventana chica para no fallar por segundos: 12:00–12:02 (configurable)
+  const inResetWindow = nowMin >= resetMin && nowMin < resetMin + 2;
+
+  // solo 1 vez por día
+  if (!inResetWindow || lastAutoReset === dayKey) return;
+
+  const newStatus = { piso1: true, piso2: true };
+
+  try {
+    await pool.query(
+      "UPDATE orders_status SET piso1=$1, piso2=$2, updated_at=NOW() WHERE id=1",
+      [newStatus.piso1, newStatus.piso2]
+    );
+
+    ordersOpen = newStatus;
+
+    // deja el autocierre “listo” para la noche siguiente
+    lastAutoClose = { piso1: null, piso2: null };
+
+    lastAutoReset = dayKey;
+
+    emitOrdersStatus(); // sube switch en admin + verde en DJs
+  } catch (e) {
+    console.log("⚠️ autoResetIfNeeded error:", e.message);
+  }
+}
+
+// corre cada 30s
+setInterval(() => {
+  autoCloseIfNeeded().catch(() => {});
+  autoResetIfNeeded().catch(() => {});
+}, 30_000);
+
+// =======================
 // Rutas páginas
 // =======================
 app.get("/", (req, res) => {
@@ -313,9 +419,15 @@ app.get("/", (req, res) => {
   return res.redirect("/login");
 });
 
-app.get("/login", (req, res) => res.sendFile(process.cwd() + "/public/login.html"));
-app.get("/piso1", (req, res) => res.sendFile(process.cwd() + "/public/index.html"));
-app.get("/piso2", (req, res) => res.sendFile(process.cwd() + "/public/arriba.html"));
+app.get("/login", (req, res) =>
+  res.sendFile(process.cwd() + "/public/login.html")
+);
+app.get("/piso1", (req, res) =>
+  res.sendFile(process.cwd() + "/public/index.html")
+);
+app.get("/piso2", (req, res) =>
+  res.sendFile(process.cwd() + "/public/arriba.html")
+);
 
 app.get("/dj", requireDjRoute("/dj"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj.html")
@@ -399,17 +511,10 @@ function checkCooldownOrNull(key) {
 }
 
 // =======================
-// ✅ song_key (para plays.song_key NOT NULL)
-// =======================
-// =======================
 // ✅ keys (para plays.song_key / plays.artist_key NOT NULL)
 // =======================
 function normalizeKey(x) {
-  return String(x ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
+  return String(x ?? "").trim().toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function makeSongKey(song, artist) {
@@ -426,11 +531,17 @@ function makeArtistKey(artist) {
 
 // Inserta en plays intentando con song_key + artist_key;
 // si alguna columna no existe en otro ambiente, hace fallback
-async function insertPlaySafe({ piso, table_no, name, artist, song, requested_at }) {
+async function insertPlaySafe({
+  piso,
+  table_no,
+  name,
+  artist,
+  song,
+  requested_at,
+}) {
   const song_key = makeSongKey(song, artist);
   const artist_key = makeArtistKey(artist);
 
-  // 1) intento completo (song_key + artist_key)
   try {
     return await pool.query(
       `
@@ -441,9 +552,7 @@ async function insertPlaySafe({ piso, table_no, name, artist, song, requested_at
       [piso, table_no, name, artist, song, song_key, artist_key, requested_at]
     );
   } catch (e) {
-    // 42703 = undefined_column (por si en algún ambiente no existen esas columnas)
     if (e && e.code === "42703") {
-      // 2) intento solo song_key
       try {
         return await pool.query(
           `
@@ -455,7 +564,6 @@ async function insertPlaySafe({ piso, table_no, name, artist, song, requested_at
         );
       } catch (e2) {
         if (e2 && e2.code === "42703") {
-          // 3) intento sin keys (ambiente antiguo)
           return await pool.query(
             `
             INSERT INTO plays (piso, table_no, name, artist, song, requested_at, played_at)
@@ -472,16 +580,13 @@ async function insertPlaySafe({ piso, table_no, name, artist, song, requested_at
   }
 }
 
-
 // =======================
 // Requests Piso 1 (DB)
 // =======================
 app.post("/api/requests", async (req, res) => {
   await loadOrdersStatus();
 
-  const closedBySchedule = rejectIfClosedForFloor(1);
-  if (closedBySchedule) return res.status(403).json(closedBySchedule);
-
+  // ✅ YA NO BLOQUEA POR HORARIO (admin manda)
   const closedByAdmin = rejectIfAdminClosed(1);
   if (closedByAdmin) return res.status(403).json(closedByAdmin);
 
@@ -530,14 +635,12 @@ app.delete("/api/requests/:id", async (req, res) => {
   const id = Number(req.params.id);
 
   try {
-    // 1) sacar la request (sin perder datos)
     const removed = await pool.query(
       `DELETE FROM requests WHERE id=$1
        RETURNING table_no, name, artist, song, created_at`,
       [id]
     );
 
-    // si no existía, igual emitimos y devolvemos ok
     if (!removed.rowCount) {
       await emitRequests();
       return res.json({ ok: true, playedLogged: false });
@@ -545,7 +648,6 @@ app.delete("/api/requests/:id", async (req, res) => {
 
     const r = removed.rows[0];
 
-    // 2) insertar en plays (con song_key)
     await insertPlaySafe({
       piso: 1,
       table_no: r.table_no,
@@ -555,7 +657,6 @@ app.delete("/api/requests/:id", async (req, res) => {
       requested_at: r.created_at,
     });
 
-    // 3) update UI realtime
     await emitRequests();
     return res.json({ ok: true, playedLogged: true });
   } catch (e) {
@@ -580,9 +681,7 @@ app.delete("/api/requests", async (req, res) => {
 app.post("/api/requests2", async (req, res) => {
   await loadOrdersStatus();
 
-  const closedBySchedule = rejectIfClosedForFloor(2);
-  if (closedBySchedule) return res.status(403).json(closedBySchedule);
-
+  // ✅ YA NO BLOQUEA POR HORARIO (admin manda)
   const closedByAdmin = rejectIfAdminClosed(2);
   if (closedByAdmin) return res.status(403).json(closedByAdmin);
 
@@ -700,7 +799,7 @@ app.get("/api/admin/stats/summary", requireAdmin, async (req, res) => {
 
 app.get("/api/admin/stats/top-songs", requireAdmin, async (req, res) => {
   const days = parseDays(req.query.days, 30);
-  const limit = 10;
+  const limit = 5;
 
   try {
     const q = await pool.query(
@@ -723,7 +822,7 @@ app.get("/api/admin/stats/top-songs", requireAdmin, async (req, res) => {
 
 app.get("/api/admin/stats/top-artists", requireAdmin, async (req, res) => {
   const days = parseDays(req.query.days, 30);
-  const limit = 10;
+  const limit = 5;
 
   try {
     const q = await pool.query(
@@ -744,22 +843,34 @@ app.get("/api/admin/stats/top-artists", requireAdmin, async (req, res) => {
   }
 });
 
+// ✅ POR DÍA: últimos 5 “días de noche” (19:00–05:00) para que no crezca infinito
 app.get("/api/admin/stats/by-day", requireAdmin, async (req, res) => {
   const days = parseDays(req.query.days, 30);
+  const limit = 5;
 
   try {
     const q = await pool.query(
       `
-      SELECT DATE(played_at) AS day, COUNT(*)::int AS plays
-      FROM plays
-      WHERE played_at >= NOW() - ($1 || ' days')::interval
-      GROUP BY day
-      ORDER BY day DESC
+      WITH p AS (
+        SELECT
+          CASE
+            WHEN ((played_at AT TIME ZONE $2)::time < time '05:00')
+              THEN ((played_at AT TIME ZONE $2)::date - 1)
+            ELSE (played_at AT TIME ZONE $2)::date
+          END AS night_day
+        FROM plays
+        WHERE played_at >= NOW() - ($1 || ' days')::interval
+      )
+      SELECT night_day AS day, COUNT(*)::int AS plays
+      FROM p
+      GROUP BY night_day
+      ORDER BY night_day DESC
+      LIMIT ${limit}
       `,
-      [days]
+      [days, TZ_CHILE]
     );
 
-    res.json({ ok: true, days, rows: q.rows });
+    res.json({ ok: true, days, limit, rows: q.rows });
   } catch (e) {
     res.status(500).json({ ok: false, error: e.message });
   }
@@ -787,6 +898,113 @@ app.get("/api/admin/stats/by-floor", requireAdmin, async (req, res) => {
 });
 
 // =======================
+// ✅ Admin Historial (19:00 -> 05:00) por piso
+// - lista reproducidas (plays)
+// - orden por llegada (requested_at)
+// - devuelve wait_min (minutos de espera)
+// =======================
+function isValidISODateOnly(s) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
+}
+
+// ✅ NUEVO: consultar 1 día (para el botón del calendario al lado de “Por día”)
+app.get("/api/admin/stats/by-day-one", requireAdmin, async (req, res) => {
+  const date = isValidISODateOnly(req.query.date) ? String(req.query.date) : null;
+  if (!date) {
+    return res.status(400).json({ ok: false, error: "date inválido (YYYY-MM-DD)" });
+  }
+
+  try {
+    const q = await pool.query(
+      `
+      WITH p AS (
+        SELECT
+          CASE
+            WHEN ((played_at AT TIME ZONE $2)::time < time '05:00')
+              THEN ((played_at AT TIME ZONE $2)::date - 1)
+            ELSE (played_at AT TIME ZONE $2)::date
+          END AS night_day
+        FROM plays
+      )
+      SELECT COUNT(*)::int AS plays
+      FROM p
+      WHERE night_day = ($1)::date
+      `,
+      [date, TZ_CHILE]
+    );
+
+    return res.json({ ok: true, date, plays: q.rows?.[0]?.plays ?? 0 });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Si ahora es 00:00–04:59, considera “noche” del día anterior
+function getChileNightDateKey() {
+  const nowMin = getChileMinutesNow();
+  const dateKey = getChileDateKey();
+  if (nowMin < 5 * 60) {
+    const [yy, mm, dd] = dateKey.split("-").map((x) => Number(x));
+    const utc = new Date(Date.UTC(yy, mm - 1, dd, 12, 0, 0));
+    utc.setUTCDate(utc.getUTCDate() - 1);
+    const y = utc.getUTCFullYear();
+    const m = String(utc.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(utc.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return dateKey;
+}
+
+app.get("/api/admin/history", requireAdmin, async (req, res) => {
+  const piso = Number(req.query.floor);
+  if (![1, 2].includes(piso)) {
+    return res.status(400).json({ ok: false, error: "floor inválido" });
+  }
+
+  const date = isValidISODateOnly(req.query.date)
+    ? String(req.query.date)
+    : getChileNightDateKey();
+
+  try {
+    const q = await pool.query(
+      `
+      WITH win AS (
+        SELECT
+          (((($2)::date) + time '19:00') AT TIME ZONE $3) AS start_ts,
+          (((($2)::date + 1) + time '05:00') AT TIME ZONE $3) AS end_ts
+      )
+      SELECT
+        id,
+        piso,
+        table_no,
+        name,
+        artist,
+        song,
+        requested_at,
+        played_at,
+        GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (played_at - requested_at)) / 60))::int AS wait_min
+      FROM plays, win
+      WHERE piso = $1
+        AND requested_at >= win.start_ts
+        AND requested_at < win.end_ts
+      ORDER BY requested_at ASC, id ASC
+      `,
+      [piso, date, TZ_CHILE]
+    );
+
+    return res.json({
+      ok: true,
+      floor: piso,
+      date,
+      window: { startHHMM: "19:00", endHHMM: "05:00", tz: TZ_CHILE },
+      rows: q.rows,
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// =======================
 // Socket
 // =======================
 io.on("connection", async (socket) => {
@@ -809,6 +1027,10 @@ const PORT = process.env.PORT || 3000;
 
 (async () => {
   await loadOrdersStatus();
+
+  // ✅ corre una vez al arrancar también
+  await autoCloseIfNeeded().catch(() => {});
+  await autoResetIfNeeded().catch(() => {});
 
   server.listen(PORT, "0.0.0.0", async () => {
     console.log(`🚀 http://localhost:${PORT}`);
