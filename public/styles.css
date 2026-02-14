@@ -129,13 +129,21 @@ a{ color: inherit; }
 }
 
 .panel{
-  width:100%;
-  max-width: 240px;
-  padding:16px;
+  background: linear-gradient(
+    180deg,
+    rgba(0,0,0,0.65),
+    rgba(0,0,0,0.85)
+  );
+  border: 1px solid rgba(200,165,122,.35);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.45),
+    0 0 0 1px rgba(200,165,122,.08) inset;
+  backdrop-filter: blur(6px);
 }
 
+
 .requests-area{
-  padding:16px;
+  padding: 30px;
   min-height: 420px;
 }
 
@@ -844,3 +852,121 @@ body:not(.dj) input:focus{
   color: rgb(255,215,120);
   text-shadow: 0 0 8px rgba(255,200,80,0.45);
 }
+
+.card-head::after{
+  content:"";
+  display:block;
+  width:40px;
+  height:3px;
+  background: linear-gradient(90deg,var(--cafe),transparent);
+  margin-top:12px;
+  border-radius:3px;
+}
+
+.admin-grid .panel{
+  min-height: 120px;
+  padding: 22px 14px;
+}
+
+/* =========================
+   BOTONES - look premium
+   ========================= */
+
+:root{
+  --gold-1: rgba(200,165,122,.85);
+  --gold-2: rgba(200,165,122,.35);
+  --btn-bg: rgba(0,0,0,.35);
+  --btn-bg2: rgba(0,0,0,.55);
+}
+
+.btn, .hist-btn, .closeX{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+
+  padding: 10px 14px;
+  border-radius: 14px;
+
+  border: 1.5px solid var(--gold-2);
+  background: linear-gradient(180deg, var(--btn-bg), var(--btn-bg2));
+  color: var(--text);
+
+  font-weight: 900;
+  letter-spacing: .3px;
+
+  box-shadow:
+    0 10px 24px rgba(0,0,0,.45),
+    0 0 0 1px rgba(255,255,255,.05) inset;
+
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+
+.btn:hover, .hist-btn:hover, .closeX:hover{
+  filter: brightness(1.08);
+  border-color: rgba(200,165,122,.55);
+  box-shadow:
+    0 14px 32px rgba(0,0,0,.55),
+    0 0 16px rgba(200,165,122,.12),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+.btn:active, .hist-btn:active, .closeX:active{
+  transform: translateY(1px);
+  filter: brightness(0.98);
+}
+
+/* Botón principal (para "Actualizar") */
+.btn-primary{
+  border-color: rgba(200,165,122,.75);
+  box-shadow:
+    0 16px 40px rgba(0,0,0,.60),
+    0 0 22px rgba(200,165,122,.18),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+}
+
+/* Botón secundario (para "Ver día" / "Historial") */
+.btn-ghost{
+  background: rgba(0,0,0,.28);
+  border-color: rgba(200,165,122,.35);
+}
+
+/* Botón pequeño (si usas btn-small) */
+.btn-small{
+  padding: 9px 12px;
+  border-radius: 13px;
+  font-size: 13px;
+}
+
+/* Select (Rango) para que combine */
+.select{
+  border: 1.5px solid rgba(200,165,122,.28) !important;
+  background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.55)) !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,.40);
+}
+
+.select:focus{
+  outline: none;
+  border-color: rgba(200,165,122,.65) !important;
+  box-shadow: 0 0 0 3px rgba(200,165,122,.10), 0 14px 28px rgba(0,0,0,.55);
+}
+
+/* =========================
+   HISTORIAL: borde plomo ultra fino
+   (override final)
+========================= */
+.hist-btn{
+  border: 1px solid rgba(255,255,255,.14) !important; /* plomo fino */
+  background: rgba(0,0,0,.30) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04) !important;
+}
+
+/* Hover: se puede volver dorado suave (opcional, queda pro) */
+.hist-btn:hover{
+  border-color: rgba(200,165,122,.55) !important;
+  box-shadow:
+    0 14px 32px rgba(0,0,0,.55),
+    0 0 14px rgba(200,165,122,.10),
+    inset 0 0 0 1px rgba(255,255,255,.06) !important;
+}
+

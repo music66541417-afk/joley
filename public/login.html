@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Login DJ - Jolly Roger</title>
+
+  <!-- Fuente moderna tipo SaaS -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/login.css">
 </head>
 <body>
@@ -12,8 +18,15 @@
     <section class="left">
       <div class="left-overlay">
         <div class="welcome">
+          <div class="brand-pill">Jolly Roger • Karaoke System</div>
           <h1>Karaoke Jolly Roger</h1>
-          <p>Acceso exclusivo para DJ. Ingresa tus credenciales para administrar las solicitudes.</p>
+          <p>Gestión en tiempo real de solicitudes y estadísticas.</p>
+
+          <div class="bullets">
+            <div class="b">⚡ En vivo en tiempo real</div>
+            <div class="b">🧾 Registro de actividad</div>
+            <div class="b">🏴‍☠️ Control por piso</div>
+          </div>
         </div>
       </div>
     </section>
@@ -23,31 +36,41 @@
       <div class="card">
         <div class="card-head">
           <div class="kicker">INICIO DE SESIÓN</div>
-          <h2>Ingreso DJ</h2>
-          <p></p>
+          <h2>DJ /Administrador</h2>
+          <p class="sub"></p>
         </div>
 
         <form class="form" id="loginForm" autocomplete="off">
           <label class="field">
             <span>Usuario</span>
-            <input id="username" name="username" maxlength="50" required placeholder="" />
+            <div class="input-wrap">
+              <span class="icon" aria-hidden="true">👤</span>
+              <input id="username" name="username" maxlength="50" required placeholder="Nombre de usuario" />
+            </div>
           </label>
 
           <label class="field">
             <span>Contraseña</span>
-            <input id="password" name="password" type="password" maxlength="80" required placeholder="" />
+            <div class="input-wrap">
+              <span class="icon" aria-hidden="true">🔒</span>
+              <input id="password" name="password" type="password" maxlength="80" required placeholder="Tu contraseña" />
+            </div>
           </label>
 
           <!-- destino después del login -->
           <input type="hidden" id="next" value="/dj" />
 
-          <button class="btn" type="submit">Entrar</button>
+          <button class="btn" type="submit">
+            <span class="btn-text">Entrar</span>
+            <span class="btn-spin" aria-hidden="true"></span>
+          </button>
+
           <div class="toast" id="toast"></div>
         </form>
 
         <div class="foot">
           <span class="dot">•</span>
-          <span>Acceso restringido / Registro de actividad activo</span>
+          <span>Sistema protegido · Monitoreo activo</span>
         </div>
       </div>
     </section>
@@ -67,7 +90,8 @@
       const btn = document.querySelector("#loginForm .btn");
       if(!btn) return;
       btn.classList.remove("loading");
-      btn.textContent = btn.dataset.originalText || "Entrar";
+      const txt = btn.querySelector(".btn-text");
+      if (txt) txt.textContent = btn.dataset.originalText || "Entrar";
     }
 
     // ✅ al volver con la flecha atrás (bfcache) se resetea el botón y el toast
@@ -86,11 +110,12 @@
       showToast("");
 
       const btn = form.querySelector(".btn");
-      if(!btn.dataset.originalText) btn.dataset.originalText = btn.textContent;
+      const btnText = btn.querySelector(".btn-text");
+      if(!btn.dataset.originalText) btn.dataset.originalText = (btnText?.textContent || btn.textContent);
 
       // ✅ loader en el botón
       btn.classList.add("loading");
-      btn.textContent = "Ingresando...";
+      if (btnText) btnText.textContent = "Ingresando...";
 
       const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
