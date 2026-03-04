@@ -26,10 +26,29 @@ const dayPickResult = document.getElementById("dayPickResult");
 // Modal historial
 const histBtn1 = document.getElementById("histBtn1");
 const histBtn2 = document.getElementById("histBtn2");
+const raffleBtn1 = document.getElementById("raffleBtn1");
+const raffleBtn2 = document.getElementById("raffleBtn2");
 const histOverlay = document.getElementById("histOverlay");
 const histModal = document.getElementById("histModal");
 const histTitle = document.getElementById("histTitle");
 const histSub = document.getElementById("histSub");
+
+// Modal ruleta
+const raffleOverlay = document.getElementById("raffleOverlay");
+const raffleModal = document.getElementById("raffleModal");
+const raffleTitle = document.getElementById("raffleTitle");
+const raffleSub = document.getElementById("raffleSub");
+const raffleDatePill = document.getElementById("raffleDatePill");
+const raffleDate = document.getElementById("raffleDate");
+const raffleLoadBtn = document.getElementById("raffleLoadBtn");
+const raffleLoadWinnersBtn = document.getElementById("raffleLoadWinnersBtn");
+const raffleCloseBtn = document.getElementById("raffleCloseBtn");
+const raffleStatus = document.getElementById("raffleStatus");
+const raffleCount = document.getElementById("raffleCount");
+const participantsBody = document.getElementById("participantsBody");
+const winnersBody = document.getElementById("winnersBody");
+const wheelCanvas = document.getElementById("wheelCanvas");
+const raffleSpinBtn = document.getElementById("raffleSpinBtn");
 
 // ✅ CAMBIO: histWindow puede ser null (seguro)
 const histWindow = document.getElementById("histWindow"); // puede ser null
@@ -82,6 +101,14 @@ function fmtDateCL(isoDateOnly) {
   } catch {
     return isoDateOnly;
   }
+}
+
+function todayISO() {
+  const t = new Date();
+  const yyyy = t.getFullYear();
+  const mm = String(t.getMonth() + 1).padStart(2, "0");
+  const dd = String(t.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function fmtWait(min) {
@@ -253,11 +280,7 @@ function openModal(floor) {
 
   histTitle.textContent = floor === 1 ? "Historial DJ 1" : "Historial DJ 2";
 
-  const t = new Date();
-  const yyyy = t.getFullYear();
-  const mm = String(t.getMonth() + 1).padStart(2, "0");
-  const dd = String(t.getDate()).padStart(2, "0");
-  if (!histDate.value) histDate.value = `${yyyy}-${mm}-${dd}`;
+  if (!histDate.value) histDate.value = todayISO();
 
   histOverlay.classList.add("open");
   histModal.classList.add("open");
@@ -370,6 +393,338 @@ async function loadHistory() {
   }
 }
 
+/* ===========================
+   🎡 RULETA (por piso)
+   - GANADORES: solo Hora + Nombre (sin números)
+   - PARTICIPANTES: "Cantó X vez/veces"
+   =========================== */
+
+let raffleFloor = null;
+let raffleParticipants = []; // [{name, plays}]
+let wheelRot = 0; // radians
+let spinning = false;
+
+function pluralVez(n) {
+  return Number(n) === 1 ? "vez" : "veces";
+}
+
+function updateRafflePill() {
+  const d = raffleDate?.value || todayISO();
+  if (raffleDatePill) raffleDatePill.textContent = fmtDateCL(d);
+}
+
+function setRaffleStatus(msg) {
+  if (raffleStatus) raffleStatus.textContent = msg || "—";
+}
+
+function openRaffle(floor) {
+  raffleFloor = floor;
+
+  if (raffleTitle) raffleTitle.textContent = floor === 1 ? " Ruleta DJ 1" : " Ruleta DJ 2";
+  if (raffleSub) raffleSub.textContent = "";
+
+  if (raffleDate && !raffleDate.value) raffleDate.value = todayISO();
+  updateRafflePill();
+
+  raffleOverlay?.classList.add("open");
+  raffleModal?.classList.add("open");
+
+  // carga inmediata
+  loadRaffleParticipants();
+  loadWinners();
+}
+
+function closeRaffle() {
+  raffleOverlay?.classList.remove("open");
+  raffleModal?.classList.remove("open");
+  raffleFloor = null;
+  raffleParticipants = [];
+  setRaffleStatus("—");
+  if (participantsBody) setTbodyEmpty(participantsBody, 2, "—");
+  if (winnersBody) setTbodyEmpty(winnersBody, 2, "—"); // ✅ 2 cols ahora
+  drawWheel();
+}
+
+raffleOverlay?.addEventListener("click", closeRaffle);
+raffleCloseBtn?.addEventListener("click", closeRaffle);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && raffleModal?.classList.contains("open")) closeRaffle();
+});
+
+raffleBtn1?.addEventListener("click", () => openRaffle(1));
+raffleBtn2?.addEventListener("click", () => openRaffle(2));
+
+raffleLoadBtn?.addEventListener("click", () => {
+  loadRaffleParticipants();
+});
+
+raffleLoadWinnersBtn?.addEventListener("click", () => {
+  loadWinners();
+});
+
+raffleDate?.addEventListener("change", () => {
+  updateRafflePill();
+  loadRaffleParticipants();
+  loadWinners();
+});
+
+function wheelCtx() {
+  if (!wheelCanvas) return null;
+  return wheelCanvas.getContext("2d");
+}
+
+function drawWheel() {
+  const ctx = wheelCtx();
+  if (!ctx) return;
+
+  const w = wheelCanvas.width;
+  const h = wheelCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = Math.min(cx, cy) - 6;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // base
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255,255,255,0.06)";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(200,165,122,0.9)";
+  ctx.stroke();
+
+  const n = raffleParticipants.length;
+  if (!n) {
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.font = "700 16px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Sin participantes", cx, cy);
+    return;
+  }
+
+  const arc = (Math.PI * 2) / n;
+
+  for (let i = 0; i < n; i++) {
+    const a0 = wheelRot + i * arc;
+    const a1 = a0 + arc;
+
+    // colores alternados suaves
+    const light = i % 2 ? 0.10 : 0.18;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255,255,255,${light})`;
+    ctx.fill();
+
+    // texto
+    const mid = (a0 + a1) / 2;
+    const tx = cx + Math.cos(mid) * (r * 0.62);
+    const ty = cy + Math.sin(mid) * (r * 0.62);
+
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(mid + Math.PI / 2);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.font = "700 12px system-ui";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const label = String(raffleParticipants[i].name || "").slice(0, 16);
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+  }
+
+  // centro
+  ctx.beginPath();
+  ctx.arc(cx, cy, 26, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(15,15,16,0.85)";
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(200,165,122,0.9)";
+  ctx.stroke();
+}
+
+function pickWinnerFromRotation() {
+  const n = raffleParticipants.length;
+  if (!n) return null;
+
+  const arc = (Math.PI * 2) / n;
+  const pointerAngle = -Math.PI / 2;
+
+  const a = (pointerAngle - wheelRot) % (Math.PI * 2);
+  const norm = (a + Math.PI * 2) % (Math.PI * 2);
+
+  const idx = Math.floor(norm / arc) % n;
+  return { idx, ...raffleParticipants[idx] };
+}
+
+async function loadRaffleParticipants() {
+  if (![1, 2].includes(raffleFloor)) return;
+
+  const date = raffleDate?.value || todayISO();
+  updateRafflePill();
+
+  setRaffleStatus("Cargando participantes…");
+  setTbodyEmpty(participantsBody, 2, "Cargando…");
+
+  try {
+    const r = await fetch(`/api/admin/stats/top-singers-night?floor=${raffleFloor}&date=${encodeURIComponent(date)}&min=2`);
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "Error");
+
+    raffleParticipants = (j.rows || []).map(x => ({
+      name: x.name,
+      plays: Number(x.plays) || 0,
+    }));
+
+    raffleCount.textContent = String(raffleParticipants.length);
+
+    if (!raffleParticipants.length) {
+      setRaffleStatus("Sin participantes para esa fecha (requiere 2+ canciones).");
+      setTbodyEmpty(participantsBody, 2, "Sin participantes");
+      wheelRot = 0;
+      drawWheel();
+      return;
+    }
+
+    participantsBody.innerHTML = raffleParticipants.map(x => `
+      <tr>
+        <td><b>${esc(x.name)}</b></td>
+        <td class="right">Cantó ${esc(x.plays)} ${pluralVez(x.plays)}</td>
+      </tr>
+    `).join("");
+
+    setRaffleStatus("Listo para girar 🎉");
+    wheelRot = 0;
+    drawWheel();
+  } catch (e) {
+    raffleParticipants = [];
+    raffleCount.textContent = "0";
+    setRaffleStatus("Error cargando participantes");
+    setTbodyEmpty(participantsBody, 2, "Error cargando");
+    wheelRot = 0;
+    drawWheel();
+  }
+}
+
+async function loadWinners() {
+  if (![1, 2].includes(raffleFloor)) return;
+
+  const date = raffleDate?.value || todayISO();
+  updateRafflePill();
+
+  // ✅ ahora la tabla de ganadores tiene 2 columnas (Hora, Nombre)
+  setTbodyEmpty(winnersBody, 2, "Cargando…");
+
+  try {
+    const r = await fetch(`/api/admin/raffle/winners?floor=${raffleFloor}&date=${encodeURIComponent(date)}`);
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || "Error");
+
+    const rows = j.rows || [];
+    if (!rows.length) {
+      setTbodyEmpty(winnersBody, 2, "Sin ganadores todavía");
+      return;
+    }
+
+    // ✅ SIN columna de plays
+    winnersBody.innerHTML = rows.map(w => `
+      <tr>
+        <td class="mono">${esc(fmtTimeCL(w.created_at))}</td>
+        <td><b>${esc(w.name)}</b></td>
+      </tr>
+    `).join("");
+  } catch {
+    setTbodyEmpty(winnersBody, 2, "Error cargando ganadores");
+  }
+}
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3);
+}
+
+async function spinWheel() {
+  if (spinning) return;
+  if (!raffleParticipants.length) {
+    alert("No hay participantes para girar.");
+    return;
+  }
+
+  spinning = true;
+  raffleSpinBtn && (raffleSpinBtn.disabled = true);
+
+  const baseTurns = 5;
+  const extra = Math.random() * 2;
+  const target = wheelRot + (baseTurns + extra) * Math.PI * 2 + (Math.random() * Math.PI * 2);
+
+  const start = wheelRot;
+  const delta = target - start;
+
+  const dur = 2600;
+  const t0 = performance.now();
+
+  setRaffleStatus("Girando…");
+
+  function frame(now) {
+    const t = Math.min(1, (now - t0) / dur);
+    const k = easeOutCubic(t);
+    wheelRot = start + delta * k;
+    drawWheel();
+
+    if (t < 1) requestAnimationFrame(frame);
+    else done();
+  }
+
+  async function done() {
+    wheelRot = ((wheelRot % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    drawWheel();
+
+    const w = pickWinnerFromRotation();
+    if (!w) {
+      setRaffleStatus("No se pudo determinar ganador.");
+      spinning = false;
+      raffleSpinBtn && (raffleSpinBtn.disabled = false);
+      return;
+    }
+
+    const winnerName = w.name;
+    const winnerPlays = w.plays;
+
+    // ✅ status sin "(x veces)" y sin texto cortado
+    setRaffleStatus(`🏆 Ganador: ${winnerName}`);
+
+    try {
+      const date = raffleDate?.value || todayISO();
+      await fetch("/api/admin/raffle/winners", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          floor: raffleFloor,
+          date,
+          name: winnerName,
+          plays: winnerPlays,
+        }),
+      });
+    } catch {}
+
+    await loadWinners();
+
+    spinning = false;
+    raffleSpinBtn && (raffleSpinBtn.disabled = false);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+raffleSpinBtn?.addEventListener("click", spinWheel);
+
+// dibuja al cargar
+try { drawWheel(); } catch {}
+
 // ===== bootstrap =====
 (async function boot() {
   try {
@@ -380,5 +735,3 @@ async function loadHistory() {
 
   loadStats();
 })();
-
-

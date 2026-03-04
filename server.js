@@ -30,6 +30,39 @@ pool
   .catch((e) => console.log("⚠️ DB aún no responde:", e.message));
 
 // =======================
+// 🎁 Raffle Winners: asegurar tabla (auto-create)
+// =======================
+async function ensureRaffleWinnersTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS raffle_winners (
+        id SERIAL PRIMARY KEY,
+        floor INT NOT NULL CHECK (floor IN (1,2)),
+        night_day DATE NOT NULL,
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL,
+        plays INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_raffle_winners_day_floor
+      ON raffle_winners (night_day DESC, floor);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_raffle_winners_name_key
+      ON raffle_winners (name_key);
+    `);
+
+    console.log("✅ raffle_winners OK");
+  } catch (e) {
+    console.log("⚠️ No pude asegurar raffle_winners:", e.message);
+  }
+}
+
+// =======================
 // App / Server
 // =======================
 const app = express();
@@ -378,7 +411,7 @@ async function autoResetIfNeeded() {
   const nowMin = getChileMinutesNow();
   const dayKey = getChileDateKey();
 
-  // ventana chica para no fallar por segundos: 12:00–12:02 (configurable)
+  // ventana chica para no fallar por segundos: 12:00–12:02
   const inResetWindow = nowMin >= resetMin && nowMin < resetMin + 2;
 
   // solo 1 vez por día
@@ -843,7 +876,7 @@ app.get("/api/admin/stats/top-artists", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ POR DÍA: últimos 5 “días de noche” (19:00–05:00) para que no crezca infinito
+// ✅ POR DÍA: últimos 5 “días de noche” (19:00–05:00)
 app.get("/api/admin/stats/by-day", requireAdmin, async (req, res) => {
   const days = parseDays(req.query.days, 30);
   const limit = 5;
@@ -899,15 +932,12 @@ app.get("/api/admin/stats/by-floor", requireAdmin, async (req, res) => {
 
 // =======================
 // ✅ Admin Historial (19:00 -> 05:00) por piso
-// - lista reproducidas (plays)
-// - orden por llegada (requested_at)
-// - devuelve wait_min (minutos de espera)
 // =======================
 function isValidISODateOnly(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 }
 
-// ✅ NUEVO: consultar 1 día (para el botón del calendario al lado de “Por día”)
+// ✅ consultar 1 día (para el botón del calendario)
 app.get("/api/admin/stats/by-day-one", requireAdmin, async (req, res) => {
   const date = isValidISODateOnly(req.query.date) ? String(req.query.date) : null;
   if (!date) {
@@ -1005,6 +1035,144 @@ app.get("/api/admin/history", requireAdmin, async (req, res) => {
 });
 
 // =======================
+// 🎤 Top cantantes de la noche (para ruleta)
+// ✅ NUEVO: excluye ganadores del mismo día/piso (no vuelven a participar)
+// =======================
+app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => {
+  const floor = Number(req.query.floor);
+  if (![1, 2].includes(floor)) {
+    return res.status(400).json({ ok: false, error: "floor inválido (1 o 2)" });
+  }
+
+  const date = isValidISODateOnly(req.query.date)
+    ? String(req.query.date)
+    : getChileNightDateKey();
+
+  const minRaw = Number(req.query.min ?? 2);
+  const min =
+    Number.isFinite(minRaw) && minRaw >= 1 && minRaw <= 50 ? Math.floor(minRaw) : 2;
+
+  try {
+    const q = await pool.query(
+      `
+      WITH win AS (
+        SELECT
+          (((($2)::date) + time '19:00') AT TIME ZONE $3) AS start_ts,
+          (((($2)::date + 1) + time '05:00') AT TIME ZONE $3) AS end_ts
+      )
+      SELECT
+        p.name,
+        COUNT(*)::int AS plays
+      FROM plays p, win
+      WHERE p.piso = $1
+        AND p.played_at >= win.start_ts
+        AND p.played_at <  win.end_ts
+
+        -- ✅ EXCLUIR: si ya ganó ese día/piso, no aparece como participante
+        AND NOT EXISTS (
+          SELECT 1
+          FROM raffle_winners rw
+          WHERE rw.floor = $1
+            AND rw.night_day = $2::date
+            AND rw.name_key = lower(trim(p.name))
+        )
+
+      GROUP BY p.name
+      HAVING COUNT(*) >= $4
+      ORDER BY plays DESC, p.name ASC
+      LIMIT 200
+      `,
+      [floor, date, TZ_CHILE, min]
+    );
+
+    return res.json({
+      ok: true,
+      floor,
+      date,
+      min,
+      window: { startHHMM: "19:00", endHHMM: "05:00", tz: TZ_CHILE },
+      rows: q.rows,
+    });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// =======================
+// 🎁 Raffle Winners (guardar y consultar ganadores)
+// =======================
+function normalizeNameKey(x) {
+  return String(x ?? "").trim().toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// GET winners: /api/admin/raffle/winners?floor=1&date=YYYY-MM-DD
+app.get("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
+  const floor = Number(req.query.floor);
+  if (![1, 2].includes(floor)) {
+    return res.status(400).json({ ok: false, error: "floor inválido (1 o 2)" });
+  }
+
+  const date = isValidISODateOnly(req.query.date)
+    ? String(req.query.date)
+    : getChileNightDateKey();
+
+  try {
+    const q = await pool.query(
+      `
+      SELECT id, floor, night_day, name, plays, created_at
+      FROM raffle_winners
+      WHERE floor = $1 AND night_day = $2::date
+      ORDER BY created_at DESC, id DESC
+      LIMIT 50
+      `,
+      [floor, date]
+    );
+
+    return res.json({ ok: true, floor, date, rows: q.rows });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// POST winner: /api/admin/raffle/winners
+// body: { floor:1|2, date:"YYYY-MM-DD", name:"...", plays:3 }
+app.post("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
+  const floor = Number(req.body?.floor);
+  if (![1, 2].includes(floor)) {
+    return res.status(400).json({ ok: false, error: "floor inválido (1 o 2)" });
+  }
+
+  const date = isValidISODateOnly(req.body?.date)
+    ? String(req.body.date)
+    : getChileNightDateKey();
+
+  const name = String(req.body?.name ?? "").trim();
+  if (!name || name.length > 80) {
+    return res.status(400).json({ ok: false, error: "name inválido" });
+  }
+
+  const playsRaw = Number(req.body?.plays ?? 0);
+  const plays = Number.isFinite(playsRaw) && playsRaw >= 0 ? Math.floor(playsRaw) : 0;
+
+  const name_key = normalizeNameKey(name);
+
+  try {
+    const ins = await pool.query(
+      `
+      INSERT INTO raffle_winners (floor, night_day, name, name_key, plays)
+      VALUES ($1, $2::date, $3, $4, $5)
+      RETURNING id, floor, night_day, name, plays, created_at
+      `,
+      [floor, date, name, name_key, plays]
+    );
+
+    return res.json({ ok: true, winner: ins.rows[0] });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// =======================
 // Socket
 // =======================
 io.on("connection", async (socket) => {
@@ -1027,6 +1195,8 @@ const PORT = process.env.PORT || 3000;
 
 (async () => {
   await loadOrdersStatus();
+
+  await ensureRaffleWinnersTable().catch(() => {});
 
   // ✅ corre una vez al arrancar también
   await autoCloseIfNeeded().catch(() => {});

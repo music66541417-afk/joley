@@ -184,6 +184,62 @@
     padding-top: 7px;
     padding-bottom: 7px;
   }
+
+  /* ===========================
+     ✅ RULETA (solo agregado, mismo look)
+  =========================== */
+  .raffle-modal{
+    width: min(1100px, 94vw);
+    height: min(86vh, 820px);
+  }
+  .pill{
+    display:inline-flex; align-items:center;
+    padding:8px 10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.14);
+    background: rgba(0,0,0,0.25);
+    color: var(--muted);
+    font-weight:900;
+  }
+
+  .raffle-grid{
+    display:grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap:14px;
+  }
+  @media (max-width: 980px){
+    .raffle-grid{ grid-template-columns: 1fr; }
+  }
+
+  .wheel-wrap{
+    position:relative;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding: 10px 0 2px 0;
+  }
+  #wheelCanvas{
+    width: 360px;
+    height: 360px;
+    max-width: 100%;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.10);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+  }
+  .wheel-pointer{
+    position:absolute;
+    top: 6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-bottom: 22px solid var(--border);
+    filter: drop-shadow(0 8px 10px rgba(0,0,0,0.35));
+    z-index: 2;
+  }
+  .raffle-actions{ display:flex; justify-content:center; margin-top: 6px; }
 </style>
 </head>
 
@@ -222,6 +278,9 @@
 
           <div style="display:flex; align-items:center; gap:10px;">
             <button class="hist-btn" id="histBtn1" type="button">🕘 Historial</button>
+            <!-- ✅ NUEVO BOTÓN RULETA (sin tocar estética) -->
+            <button class="hist-btn" id="raffleBtn1" type="button">🏆 Ruleta</button>
+
             <label class="switch" title="Abrir/Cerrar pedidos Piso 1">
               <input type="checkbox" id="toggle1" checked>
               <span class="slider"></span>
@@ -249,6 +308,9 @@
 
           <div style="display:flex; align-items:center; gap:10px;">
             <button class="hist-btn" id="histBtn2" type="button">🕘 Historial</button>
+            <!-- ✅ NUEVO BOTÓN RULETA (sin tocar estética) -->
+            <button class="hist-btn" id="raffleBtn2" type="button">🏆 Ruleta</button>
+
             <label class="switch" title="Abrir/Cerrar pedidos Piso 2">
               <input type="checkbox" id="toggle2" checked>
               <span class="slider"></span>
@@ -287,7 +349,6 @@
           </div>
         </div>
 
-        <!-- ✅ Oculto por defecto (lo mostramos con JS cuando elijas fecha) -->
         <div class="statusline" id="dayPickResult" style="margin-top:6px; display:none;"></div>
 
         <table class="tablelist" style="margin-top:8px;">
@@ -366,6 +427,73 @@
           </thead>
           <tbody id="histBody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ✅ Modal Ruleta (nuevo, sin tocar lo demás) ===== -->
+  <div class="overlay" id="raffleOverlay"></div>
+
+  <div class="modal raffle-modal" id="raffleModal" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="raffleTitle">🏆 Ruleta</div>
+        <div class="modal-sub" id="raffleSub">Elige la fecha, carga participantes y gira.</div>
+      </div>
+
+      <div class="modal-actions">
+        <span class="pill mono" id="raffleDatePill">—</span>
+        <input class="select mono" id="raffleDate" type="date" />
+        <button class="btn btn-small" id="raffleLoadBtn" type="button">Cargar</button>
+        <button class="btn btn-small" id="raffleLoadWinnersBtn" type="button">Ganadores</button>
+        <button class="closeX" id="raffleCloseBtn" type="button">Cerrar</button>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <div class="statusline" id="raffleStatus">—</div>
+
+      <div class="raffle-grid">
+        <div>
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
+            <div class="modal-title" style="font-size:14px;">👤 Participantes</div>
+            <div class="modal-sub" id="raffleCount">0</div>
+          </div>
+
+          <div class="wheel-wrap">
+            <div class="wheel-pointer" aria-hidden="true"></div>
+            <canvas id="wheelCanvas" width="360" height="360"></canvas>
+          </div>
+
+          <div class="raffle-actions">
+            <button class="btn" id="raffleSpinBtn" type="button">Girar 🎉</button>
+          </div>
+
+          <table class="tablelist" style="margin-top:10px;">
+            <thead>
+              <tr><th>Nombre</th><th class="right">Cantó</th></tr>
+            </thead>
+            <tbody id="participantsBody"></tbody>
+          </table>
+
+          <div class="statusline" style="margin-top:10px;">
+            Participan quienes cantaron <b>2+</b> veces en la noche del día elegido</b>
+          </div>
+        </div>
+
+        <div>
+          <div class="modal-title" style="font-size:14px;">🏆 Ganadores del día</div>
+          <table class="tablelist" style="margin-top:10px;">
+            <thead>
+              <tr><th>Hora</th><th>Nombre</th></tr>
+            </thead>
+            <tbody id="winnersBody"></tbody>
+          </table>
+
+          <div class="statusline" style="margin-top:10px;">
+            Se guardan por <b>día</b> y por <b>piso</b>. Cambia la fecha para revisar.
+          </div>
+        </div>
       </div>
     </div>
   </div>
