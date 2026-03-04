@@ -240,6 +240,69 @@
     z-index: 2;
   }
   .raffle-actions{ display:flex; justify-content:center; margin-top: 6px; }
+/* =========================================
+   ✅ FIX MOBILE ADMIN (botones + switch)
+   ========================================= */
+
+/* 1) En celular: que la fila pueda bajar a 2 líneas y no se corte */
+@media (max-width: 520px){
+  .rowline{
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px;
+    padding-right: 10px; /* evita que el switch toque el borde */
+  }
+
+  /* el bloque derecho (historial/ruleta/switch) baja completo */
+  .rowline > div:last-child{
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  /* botones un poco más compactos */
+  .hist-btn{
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  /* número grande no empuja tanto */
+  .big{
+    font-size: 24px;
+  }
+}
+
+/* 2) Switch más “limpio” (evita efecto raro en fondos oscuros) */
+.switch{
+  width: 48px;
+  height: 26px;
+}
+.slider{
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(200,165,122,0.28);
+}
+.slider:before{
+  height: 20px;
+  width: 20px;
+  top: 2.5px;
+  left: 3px;
+  background: rgba(0,0,0,0.70);
+  border-color: rgba(255,255,255,0.12);
+}
+input:checked + .slider{
+  background: rgba(78,225,138,0.12);
+  border-color: rgba(78,225,138,0.55);
+}
+input:checked + .slider:before{
+  transform: translateX(22px);
+  background: rgba(78,225,138,0.35);
+  border-color: rgba(78,225,138,0.55);
+}
+
+
+
+
+
 </style>
 </head>
 
@@ -477,7 +540,7 @@
           </table>
 
           <div class="statusline" style="margin-top:10px;">
-            Participan quienes cantaron <b>2+</b> veces en la noche del día elegido</b>
+            
           </div>
         </div>
 
@@ -491,7 +554,6 @@
           </table>
 
           <div class="statusline" style="margin-top:10px;">
-            Se guardan por <b>día</b> y por <b>piso</b>. Cambia la fecha para revisar.
           </div>
         </div>
       </div>

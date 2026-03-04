@@ -77,6 +77,7 @@ function esc(s) {
 }
 
 function setTbodyEmpty(tbody, cols, msg) {
+  if (!tbody) return;
   tbody.innerHTML = `<tr><td colspan="${cols}" class="muted">${esc(msg)}</td></tr>`;
 }
 
@@ -97,7 +98,11 @@ function fmtTimeCL(dt) {
 function fmtDateCL(isoDateOnly) {
   try {
     const d = new Date(isoDateOnly + "T12:00:00");
-    return d.toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
+    return d.toLocaleDateString("es-CL", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
   } catch {
     return isoDateOnly;
   }
@@ -174,12 +179,18 @@ socket.on("requests2:update", (rows) => {
 });
 
 // ===== Toggle =====
-toggle1.addEventListener("change", () => saveStatusPatch({ piso1: toggle1.checked }));
-toggle2.addEventListener("change", () => saveStatusPatch({ piso2: toggle2.checked }));
+toggle1.addEventListener("change", () =>
+  saveStatusPatch({ piso1: toggle1.checked })
+);
+toggle2.addEventListener("change", () =>
+  saveStatusPatch({ piso2: toggle2.checked })
+);
 
 // ===== Logout =====
 logoutBtn?.addEventListener("click", async () => {
-  try { await fetch("/auth/logout", { method: "POST" }); } catch {}
+  try {
+    await fetch("/auth/logout", { method: "POST" });
+  } catch {}
   location.href = "/login";
 });
 
@@ -201,12 +212,16 @@ async function loadStats() {
     if (!j.rows?.length) {
       setTbodyEmpty(byDayBody, 2, "Sin datos");
     } else {
-      byDayBody.innerHTML = j.rows.map((x, idx) => {
-        const dayISO = String(x.day).slice(0,10);
-        const day = x.day ? fmtDateCL(dayISO) : "—";
-        const cls = idx === 0 ? "byday-main" : "byday-small"; // ✅ primera fila grande
-        return `<tr class="${cls}"><td>${esc(day)}</td><td class="right">${esc(x.plays)}</td></tr>`;
-      }).join("");
+      byDayBody.innerHTML = j.rows
+        .map((x, idx) => {
+          const dayISO = String(x.day).slice(0, 10);
+          const day = x.day ? fmtDateCL(dayISO) : "—";
+          const cls = idx === 0 ? "byday-main" : "byday-small"; // ✅ primera fila grande
+          return `<tr class="${cls}"><td>${esc(
+            day
+          )}</td><td class="right">${esc(x.plays)}</td></tr>`;
+        })
+        .join("");
     }
   } catch {
     setTbodyEmpty(byDayBody, 2, "Error cargando");
@@ -219,13 +234,17 @@ async function loadStats() {
     if (!j.ok) throw new Error(j.error || "Error");
     if (!j.rows?.length) setTbodyEmpty(topSongsBody, 3, "Sin datos");
     else {
-      topSongsBody.innerHTML = j.rows.map(x => `
+      topSongsBody.innerHTML = j.rows
+        .map(
+          (x) => `
         <tr>
           <td>${esc(x.song)}</td>
           <td>${esc(x.artist)}</td>
           <td class="right">${esc(x.plays)}</td>
         </tr>
-      `).join("");
+      `
+        )
+        .join("");
     }
   } catch {
     setTbodyEmpty(topSongsBody, 3, "Error cargando");
@@ -262,14 +281,18 @@ dayPick?.addEventListener("change", async () => {
   }
 
   try {
-    const r = await fetch(`/api/admin/stats/by-day-one?date=${encodeURIComponent(date)}`);
+    const r = await fetch(
+      `/api/admin/stats/by-day-one?date=${encodeURIComponent(date)}`
+    );
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
 
     if (dayPickResult) {
-      dayPickResult.textContent = `📅 ${fmtDateCL(date)} → ${j.plays} reproducidas`;
+      dayPickResult.textContent = `📅 ${fmtDateCL(date)} → ${
+        j.plays
+      } reproducidas`;
     }
-  } catch (e) {
+  } catch {
     if (dayPickResult) dayPickResult.textContent = "Error cargando día";
   }
 });
@@ -338,12 +361,16 @@ async function loadHistory() {
   setTbodyEmpty(histBody, 5, "Cargando…");
 
   try {
-    const r = await fetch(`/api/admin/history?floor=${activeFloor}&date=${encodeURIComponent(date)}`);
+    const r = await fetch(
+      `/api/admin/history?floor=${activeFloor}&date=${encodeURIComponent(date)}`
+    );
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
 
     histSub.textContent = `${fmtDateCL(j.date)}`;
-    histWindow?.textContent && (histWindow.textContent = `${j.window.startHHMM} → ${j.window.endHHMM}`);
+    if (histWindow && typeof histWindow.textContent === "string") {
+      histWindow.textContent = `${j.window.startHHMM} → ${j.window.endHHMM}`;
+    }
 
     const rows = j.rows || [];
     if (!rows.length) {
@@ -364,25 +391,28 @@ async function loadHistory() {
 
     histStatus.textContent = "";
 
-    histBody.innerHTML = rows.map(x => {
-      const mesa = `Mesa ${x.table_no ?? "—"}`;
-      const who = x.name ? `<div class="who">${esc(x.name)}</div>` : "";
-      const song = `<div class="song">${esc(x.song || "—")}</div>`;
-      const artist = x.artist ? `<div class="muted2">${esc(x.artist)}</div>` : `<div class="muted2">—</div>`;
+    histBody.innerHTML = rows
+      .map((x) => {
+        const mesa = `Mesa ${x.table_no ?? "—"}`;
+        const who = x.name ? `<div class="who">${esc(x.name)}</div>` : "";
+        const song = `<div class="song">${esc(x.song || "—")}</div>`;
+        const artist = x.artist
+          ? `<div class="muted2">${esc(x.artist)}</div>`
+          : `<div class="muted2">—</div>`;
 
-      const reqT = fmtTimeCL(x.requested_at);
-      const playT = fmtTimeCL(x.played_at);
-      const wait = fmtWait(x.wait_min);
+        const reqT = fmtTimeCL(x.requested_at);
+        const playT = fmtTimeCL(x.played_at);
+        const wait = fmtWait(x.wait_min);
 
-      return `<tr>
+        return `<tr>
         <td><span class="tag">${esc(mesa)}</span></td>
         <td>${who}${song}${artist}</td>
         <td><span class="mono">${esc(reqT)}</span></td>
         <td><span class="mono">${esc(playT)}</span></td>
         <td class="right"><b>${esc(wait)}</b></td>
       </tr>`;
-    }).join("");
-
+      })
+      .join("");
   } catch (e) {
     histStatus.textContent = "Error cargando historial: " + (e.message || e);
     sumPlayed.textContent = "—";
@@ -397,6 +427,7 @@ async function loadHistory() {
    🎡 RULETA (por piso)
    - GANADORES: solo Hora + Nombre (sin números)
    - PARTICIPANTES: "Cantó X vez/veces"
+   ✅ FIX B: al ganar se elimina y se recarga desde BD
    =========================== */
 
 let raffleFloor = null;
@@ -413,14 +444,19 @@ function updateRafflePill() {
   if (raffleDatePill) raffleDatePill.textContent = fmtDateCL(d);
 }
 
+/* ✅ Cambiado: no mostrar "—" por defecto (para que no aparezca recuadro raro) */
 function setRaffleStatus(msg) {
-  if (raffleStatus) raffleStatus.textContent = msg || "—";
+  if (!raffleStatus) return;
+  const text = String(msg ?? "").trim();
+  raffleStatus.textContent = text;
+  raffleStatus.style.display = text ? "block" : "none";
 }
 
 function openRaffle(floor) {
   raffleFloor = floor;
 
-  if (raffleTitle) raffleTitle.textContent = floor === 1 ? " Ruleta DJ 1" : " Ruleta DJ 2";
+  if (raffleTitle)
+    raffleTitle.textContent = floor === 1 ? " Ruleta DJ 1" : " Ruleta DJ 2";
   if (raffleSub) raffleSub.textContent = "";
 
   if (raffleDate && !raffleDate.value) raffleDate.value = todayISO();
@@ -439,17 +475,20 @@ function closeRaffle() {
   raffleModal?.classList.remove("open");
   raffleFloor = null;
   raffleParticipants = [];
-  setRaffleStatus("—");
+  setRaffleStatus("");
   if (participantsBody) setTbodyEmpty(participantsBody, 2, "—");
   if (winnersBody) setTbodyEmpty(winnersBody, 2, "—"); // ✅ 2 cols ahora
   drawWheel();
+  if (raffleSpinBtn) raffleSpinBtn.disabled = false;
+  spinning = false;
 }
 
 raffleOverlay?.addEventListener("click", closeRaffle);
 raffleCloseBtn?.addEventListener("click", closeRaffle);
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && raffleModal?.classList.contains("open")) closeRaffle();
+  if (e.key === "Escape" && raffleModal?.classList.contains("open"))
+    closeRaffle();
 });
 
 raffleBtn1?.addEventListener("click", () => openRaffle(1));
@@ -512,7 +551,7 @@ function drawWheel() {
     const a1 = a0 + arc;
 
     // colores alternados suaves
-    const light = i % 2 ? 0.10 : 0.18;
+    const light = i % 2 ? 0.1 : 0.18;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, r, a0, a1);
@@ -562,6 +601,36 @@ function pickWinnerFromRotation() {
   return { idx, ...raffleParticipants[idx] };
 }
 
+/* ✅ helper para renderizar tabla+ruleta desde raffleParticipants */
+function renderParticipantsFromLocal() {
+  if (raffleCount) raffleCount.textContent = String(raffleParticipants.length);
+
+  if (!participantsBody) {
+    drawWheel();
+    return;
+  }
+
+  if (!raffleParticipants.length) {
+    setTbodyEmpty(participantsBody, 2, "Sin participantes");
+    wheelRot = 0;
+    drawWheel();
+    return;
+  }
+
+  participantsBody.innerHTML = raffleParticipants
+    .map(
+      (x) => `
+      <tr>
+        <td><b>${esc(x.name)}</b></td>
+        <td class="right">Cantó ${esc(x.plays)} ${pluralVez(x.plays)}</td>
+      </tr>
+    `
+    )
+    .join("");
+
+  drawWheel();
+}
+
 async function loadRaffleParticipants() {
   if (![1, 2].includes(raffleFloor)) return;
 
@@ -572,42 +641,42 @@ async function loadRaffleParticipants() {
   setTbodyEmpty(participantsBody, 2, "Cargando…");
 
   try {
-    const r = await fetch(`/api/admin/stats/top-singers-night?floor=${raffleFloor}&date=${encodeURIComponent(date)}&min=2`);
+    const r = await fetch(
+      `/api/admin/stats/top-singers-night?floor=${raffleFloor}&date=${encodeURIComponent(
+        date
+      )}&min=2`
+    );
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
 
-    raffleParticipants = (j.rows || []).map(x => ({
+    raffleParticipants = (j.rows || []).map((x) => ({
       name: x.name,
       plays: Number(x.plays) || 0,
     }));
 
-    raffleCount.textContent = String(raffleParticipants.length);
-
     if (!raffleParticipants.length) {
-      setRaffleStatus("Sin participantes para esa fecha (requiere 2+ canciones).");
+      // ✅ sin recuadro molesto: dejamos tabla vacía y ocultamos status
+      setRaffleStatus("");
       setTbodyEmpty(participantsBody, 2, "Sin participantes");
       wheelRot = 0;
       drawWheel();
+      if (raffleSpinBtn) raffleSpinBtn.disabled = true;
       return;
     }
 
-    participantsBody.innerHTML = raffleParticipants.map(x => `
-      <tr>
-        <td><b>${esc(x.name)}</b></td>
-        <td class="right">Cantó ${esc(x.plays)} ${pluralVez(x.plays)}</td>
-      </tr>
-    `).join("");
-
-    setRaffleStatus("Listo para girar 🎉");
+    renderParticipantsFromLocal();
+    setRaffleStatus(""); // ✅ limpio
     wheelRot = 0;
     drawWheel();
-  } catch (e) {
+    if (raffleSpinBtn) raffleSpinBtn.disabled = false;
+  } catch {
     raffleParticipants = [];
-    raffleCount.textContent = "0";
-    setRaffleStatus("Error cargando participantes");
+    if (raffleCount) raffleCount.textContent = "0";
+    setRaffleStatus("");
     setTbodyEmpty(participantsBody, 2, "Error cargando");
     wheelRot = 0;
     drawWheel();
+    if (raffleSpinBtn) raffleSpinBtn.disabled = true;
   }
 }
 
@@ -621,7 +690,11 @@ async function loadWinners() {
   setTbodyEmpty(winnersBody, 2, "Cargando…");
 
   try {
-    const r = await fetch(`/api/admin/raffle/winners?floor=${raffleFloor}&date=${encodeURIComponent(date)}`);
+    const r = await fetch(
+      `/api/admin/raffle/winners?floor=${raffleFloor}&date=${encodeURIComponent(
+        date
+      )}`
+    );
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
 
@@ -632,12 +705,16 @@ async function loadWinners() {
     }
 
     // ✅ SIN columna de plays
-    winnersBody.innerHTML = rows.map(w => `
+    winnersBody.innerHTML = rows
+      .map(
+        (w) => `
       <tr>
         <td class="mono">${esc(fmtTimeCL(w.created_at))}</td>
         <td><b>${esc(w.name)}</b></td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
   } catch {
     setTbodyEmpty(winnersBody, 2, "Error cargando ganadores");
   }
@@ -655,11 +732,14 @@ async function spinWheel() {
   }
 
   spinning = true;
-  raffleSpinBtn && (raffleSpinBtn.disabled = true);
+  if (raffleSpinBtn) raffleSpinBtn.disabled = true;
 
   const baseTurns = 5;
   const extra = Math.random() * 2;
-  const target = wheelRot + (baseTurns + extra) * Math.PI * 2 + (Math.random() * Math.PI * 2);
+  const target =
+    wheelRot +
+    (baseTurns + extra) * Math.PI * 2 +
+    Math.random() * Math.PI * 2;
 
   const start = wheelRot;
   const delta = target - start;
@@ -685,18 +765,19 @@ async function spinWheel() {
 
     const w = pickWinnerFromRotation();
     if (!w) {
-      setRaffleStatus("No se pudo determinar ganador.");
+      setRaffleStatus("");
       spinning = false;
-      raffleSpinBtn && (raffleSpinBtn.disabled = false);
+      if (raffleSpinBtn) raffleSpinBtn.disabled = false;
       return;
     }
 
     const winnerName = w.name;
     const winnerPlays = w.plays;
 
-    // ✅ status sin "(x veces)" y sin texto cortado
+    // ✅ status limpio (sin recuadro permanente)
     setRaffleStatus(`🏆 Ganador: ${winnerName}`);
 
+    // 1) Guardar ganador en BD
     try {
       const date = raffleDate?.value || todayISO();
       await fetch("/api/admin/raffle/winners", {
@@ -711,10 +792,25 @@ async function spinWheel() {
       });
     } catch {}
 
+    // 2) ✅ ELIMINAR INMEDIATO (visual) del array local + redibujar
+    raffleParticipants = raffleParticipants.filter((p) => p.name !== winnerName);
+    renderParticipantsFromLocal();
+
+    // 3) Cargar ganadores del día
     await loadWinners();
 
+    // 4) ✅ FIX B: recargar participantes desde servidor (ya excluye ganadores)
+    // Esto asegura que aunque haya duplicados/espacios/keys, quede siempre consistente.
+    await loadRaffleParticipants();
+
+    // Si quedaron 0 participantes, deshabilitar girar
+    if (raffleSpinBtn) raffleSpinBtn.disabled = raffleParticipants.length === 0;
+
+    // ocultar status después de un rato (para que no quede el “recuadro” ocupando espacio)
+    setTimeout(() => setRaffleStatus(""), 1800);
+
     spinning = false;
-    raffleSpinBtn && (raffleSpinBtn.disabled = false);
+    if (raffleSpinBtn) raffleSpinBtn.disabled = raffleParticipants.length === 0;
   }
 
   requestAnimationFrame(frame);
@@ -723,7 +819,9 @@ async function spinWheel() {
 raffleSpinBtn?.addEventListener("click", spinWheel);
 
 // dibuja al cargar
-try { drawWheel(); } catch {}
+try {
+  drawWheel();
+} catch {}
 
 // ===== bootstrap =====
 (async function boot() {
