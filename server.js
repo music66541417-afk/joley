@@ -1062,7 +1062,7 @@ app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => 
           WHERE rw.floor = $1
             AND rw.night_day = $2::date
             AND rw.name_key = lower(trim(p.name))
-            AND COALESCE(lower(trim(rw.table_no)), '') = COALESCE(lower(trim(p.table_no::text)), '')
+            AND COALESCE(lower(trim(rw.table_no::text)), '') = COALESCE(lower(trim(p.table_no::text)), '')
         )
       GROUP BY p.name, p.table_no::text
       HAVING COUNT(*) >= $4
