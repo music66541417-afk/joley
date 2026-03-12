@@ -41,9 +41,15 @@ async function ensureRaffleWinnersTable() {
         night_day DATE NOT NULL,
         name TEXT NOT NULL,
         name_key TEXT NOT NULL,
+        table_no TEXT,
         plays INT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await pool.query(`
+      ALTER TABLE raffle_winners
+      ADD COLUMN IF NOT EXISTS table_no TEXT
     `);
 
     await pool.query(`
@@ -88,7 +94,7 @@ app.use(
     cookie: {
       httpOnly: true,
       sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 12, // 12h
+      maxAge: 1000 * 60 * 60 * 12,
     },
   })
 );
@@ -112,7 +118,6 @@ app.use((req, res, next) => {
   return res.redirect(map[req.path] || "/");
 });
 
-// Static después de session
 app.use(express.static("public", { index: false }));
 
 // =======================
@@ -175,6 +180,14 @@ async function emitRequests() {
   io.emit("requests2:update", r2);
 }
 
+// ✅ NUEVO: avisar a la ruleta que cambió la lista de concursantes
+function emitRaffleUpdate(floor) {
+  io.emit("raffle:update", {
+    floor,
+    at: new Date().toISOString(),
+  });
+}
+
 // =======================
 // Estado pedidos (DB: orders_status)
 // =======================
@@ -203,13 +216,11 @@ function emitOrdersStatus() {
   io.emit("orders:status", ordersOpen);
 }
 
-// Endpoint público
 app.get("/api/orders-status", async (req, res) => {
   await loadOrdersStatus();
   res.json({ ok: true, ordersOpen });
 });
 
-// Endpoint admin
 app.post("/api/admin/orders", requireAdmin, async (req, res) => {
   const { piso1, piso2 } = req.body || {};
 
@@ -287,7 +298,6 @@ function isClosed(nowMin, cutoffMin) {
   return nowMin >= cutoffMin && nowMin < resetMin;
 }
 
-// (queda para info /api/hours, ya NO bloquea los POST)
 function rejectIfClosedForFloor(floor) {
   const nowMin = getChileMinutesNow();
   const cutoffMin = floor === 2 ? cutoffPiso2 : cutoffPiso1;
@@ -340,8 +350,7 @@ app.get("/api/hours", (req, res) => {
 });
 
 // =======================
-// ✅ Auto-corte: la hora SOLO baja el switch del admin (una vez por día)
-// El admin puede reabrir aunque sea después del corte.
+// Auto-corte / Auto-reset
 // =======================
 function getChileDateKey() {
   const parts = new Intl.DateTimeFormat("es-CL", {
@@ -354,7 +363,7 @@ function getChileDateKey() {
   const y = parts.find((p) => p.type === "year")?.value ?? "0000";
   const m = parts.find((p) => p.type === "month")?.value ?? "00";
   const d = parts.find((p) => p.type === "day")?.value ?? "00";
-  return `${y}-${m}-${d}`; // YYYY-MM-DD en Chile
+  return `${y}-${m}-${d}`;
 }
 
 let lastAutoClose = { piso1: null, piso2: null };
@@ -392,17 +401,12 @@ async function autoCloseIfNeeded() {
     if (needsCloseP1) lastAutoClose.piso1 = dayKey;
     if (needsCloseP2) lastAutoClose.piso2 = dayKey;
 
-    emitOrdersStatus(); // baja switch en admin + franja DJ
+    emitOrdersStatus();
   } catch (e) {
     console.log("⚠️ autoCloseIfNeeded error:", e.message);
   }
 }
 
-// =======================
-// ✅ NUEVO: Auto-reset diario en RESET_HHMM (ej 12:00)
-// - sube ambos switches a ABIERTO
-// - resetea lastAutoClose para el nuevo ciclo
-// =======================
 let lastAutoReset = null;
 
 async function autoResetIfNeeded() {
@@ -411,10 +415,8 @@ async function autoResetIfNeeded() {
   const nowMin = getChileMinutesNow();
   const dayKey = getChileDateKey();
 
-  // ventana chica para no fallar por segundos: 12:00–12:02
   const inResetWindow = nowMin >= resetMin && nowMin < resetMin + 2;
 
-  // solo 1 vez por día
   if (!inResetWindow || lastAutoReset === dayKey) return;
 
   const newStatus = { piso1: true, piso2: true };
@@ -426,19 +428,15 @@ async function autoResetIfNeeded() {
     );
 
     ordersOpen = newStatus;
-
-    // deja el autocierre “listo” para la noche siguiente
     lastAutoClose = { piso1: null, piso2: null };
-
     lastAutoReset = dayKey;
 
-    emitOrdersStatus(); // sube switch en admin + verde en DJs
+    emitOrdersStatus();
   } catch (e) {
     console.log("⚠️ autoResetIfNeeded error:", e.message);
   }
 }
 
-// corre cada 30s
 setInterval(() => {
   autoCloseIfNeeded().catch(() => {});
   autoResetIfNeeded().catch(() => {});
@@ -514,11 +512,10 @@ function validatePayload({ table, name, artist, song }) {
 }
 
 // =======================
-// ✅ Anti-spam SERVIDOR (regla real)
-// 15s por mesa y por piso (aunque refresquen)
+// Anti-spam servidor
 // =======================
 const REQUEST_COOLDOWN_MS = 15000;
-const lastRequestByKey = new Map(); // key -> timestamp(ms)
+const lastRequestByKey = new Map();
 
 function checkCooldownOrNull(key) {
   const now = Date.now();
@@ -544,7 +541,7 @@ function checkCooldownOrNull(key) {
 }
 
 // =======================
-// ✅ keys (para plays.song_key / plays.artist_key NOT NULL)
+// Keys helpers
 // =======================
 function normalizeKey(x) {
   return String(x ?? "").trim().toLowerCase().replace(/\s+/g, " ").trim();
@@ -562,8 +559,6 @@ function makeArtistKey(artist) {
   return a || "unknown_artist";
 }
 
-// Inserta en plays intentando con song_key + artist_key;
-// si alguna columna no existe en otro ambiente, hace fallback
 async function insertPlaySafe({
   piso,
   table_no,
@@ -614,12 +609,11 @@ async function insertPlaySafe({
 }
 
 // =======================
-// Requests Piso 1 (DB)
+// Requests Piso 1
 // =======================
 app.post("/api/requests", async (req, res) => {
   await loadOrdersStatus();
 
-  // ✅ YA NO BLOQUEA POR HORARIO (admin manda)
   const closedByAdmin = rejectIfAdminClosed(1);
   if (closedByAdmin) return res.status(403).json(closedByAdmin);
 
@@ -663,7 +657,6 @@ app.get("/api/requests", async (req, res) => {
   }
 });
 
-// ✅ Marcar "Reproducida" = mover a plays + borrar
 app.delete("/api/requests/:id", async (req, res) => {
   const id = Number(req.params.id);
 
@@ -691,13 +684,13 @@ app.delete("/api/requests/:id", async (req, res) => {
     });
 
     await emitRequests();
+    emitRaffleUpdate(1); // ✅ NUEVO: refresca ruleta automáticamente
     return res.json({ ok: true, playedLogged: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// borrar todo (sin stats)
 app.delete("/api/requests", async (req, res) => {
   try {
     await pool.query("DELETE FROM requests");
@@ -709,12 +702,11 @@ app.delete("/api/requests", async (req, res) => {
 });
 
 // =======================
-// Requests Piso 2 (DB)
+// Requests Piso 2
 // =======================
 app.post("/api/requests2", async (req, res) => {
   await loadOrdersStatus();
 
-  // ✅ YA NO BLOQUEA POR HORARIO (admin manda)
   const closedByAdmin = rejectIfAdminClosed(2);
   if (closedByAdmin) return res.status(403).json(closedByAdmin);
 
@@ -785,6 +777,7 @@ app.delete("/api/requests2/:id", async (req, res) => {
     });
 
     await emitRequests();
+    emitRaffleUpdate(2); // ✅ NUEVO: refresca ruleta automáticamente
     return res.json({ ok: true, playedLogged: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
@@ -802,7 +795,7 @@ app.delete("/api/requests2", async (req, res) => {
 });
 
 // =======================
-// Admin Stats (DB: plays)
+// Admin Stats
 // =======================
 function parseDays(x, fallback) {
   const n = Number(x);
@@ -876,7 +869,6 @@ app.get("/api/admin/stats/top-artists", requireAdmin, async (req, res) => {
   }
 });
 
-// ✅ POR DÍA: últimos 5 “días de noche” (19:00–05:00)
 app.get("/api/admin/stats/by-day", requireAdmin, async (req, res) => {
   const days = parseDays(req.query.days, 30);
   const limit = 5;
@@ -931,13 +923,12 @@ app.get("/api/admin/stats/by-floor", requireAdmin, async (req, res) => {
 });
 
 // =======================
-// ✅ Admin Historial (19:00 -> 05:00) por piso
+// Historial / noche
 // =======================
 function isValidISODateOnly(s) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 }
 
-// ✅ consultar 1 día (para el botón del calendario)
 app.get("/api/admin/stats/by-day-one", requireAdmin, async (req, res) => {
   const date = isValidISODateOnly(req.query.date) ? String(req.query.date) : null;
   if (!date) {
@@ -969,7 +960,6 @@ app.get("/api/admin/stats/by-day-one", requireAdmin, async (req, res) => {
   }
 });
 
-// Si ahora es 00:00–04:59, considera “noche” del día anterior
 function getChileNightDateKey() {
   const nowMin = getChileMinutesNow();
   const dateKey = getChileDateKey();
@@ -1035,8 +1025,7 @@ app.get("/api/admin/history", requireAdmin, async (req, res) => {
 });
 
 // =======================
-// 🎤 Top cantantes de la noche (para ruleta)
-// ✅ NUEVO: excluye ganadores del mismo día/piso (no vuelven a participar)
+// Top cantantes noche / ruleta
 // =======================
 app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => {
   const floor = Number(req.query.floor);
@@ -1062,24 +1051,23 @@ app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => 
       )
       SELECT
         p.name,
+        p.table_no,
         COUNT(*)::int AS plays
       FROM plays p, win
       WHERE p.piso = $1
         AND p.played_at >= win.start_ts
-        AND p.played_at <  win.end_ts
-
-        -- ✅ EXCLUIR: si ya ganó ese día/piso, no aparece como participante
+        AND p.played_at < win.end_ts
         AND NOT EXISTS (
           SELECT 1
           FROM raffle_winners rw
           WHERE rw.floor = $1
             AND rw.night_day = $2::date
             AND rw.name_key = lower(trim(p.name))
+            AND COALESCE(lower(trim(rw.table_no)), '') = COALESCE(lower(trim(p.table_no)), '')
         )
-
-      GROUP BY p.name
+      GROUP BY p.name, p.table_no
       HAVING COUNT(*) >= $4
-      ORDER BY plays DESC, p.name ASC
+      ORDER BY plays DESC, p.name ASC, p.table_no ASC
       LIMIT 200
       `,
       [floor, date, TZ_CHILE, min]
@@ -1099,13 +1087,12 @@ app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => 
 });
 
 // =======================
-// 🎁 Raffle Winners (guardar y consultar ganadores)
+// Raffle winners
 // =======================
 function normalizeNameKey(x) {
   return String(x ?? "").trim().toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-// GET winners: /api/admin/raffle/winners?floor=1&date=YYYY-MM-DD
 app.get("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
   const floor = Number(req.query.floor);
   if (![1, 2].includes(floor)) {
@@ -1119,7 +1106,7 @@ app.get("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
   try {
     const q = await pool.query(
       `
-      SELECT id, floor, night_day, name, plays, created_at
+      SELECT id, floor, night_day, name, table_no, plays, created_at
       FROM raffle_winners
       WHERE floor = $1 AND night_day = $2::date
       ORDER BY created_at DESC, id DESC
@@ -1134,8 +1121,6 @@ app.get("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
   }
 });
 
-// POST winner: /api/admin/raffle/winners
-// body: { floor:1|2, date:"YYYY-MM-DD", name:"...", plays:3 }
 app.post("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
   const floor = Number(req.body?.floor);
   if (![1, 2].includes(floor)) {
@@ -1151,20 +1136,26 @@ app.post("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
     return res.status(400).json({ ok: false, error: "name inválido" });
   }
 
+  const table_no = String(req.body?.table ?? "").trim() || null;
+
   const playsRaw = Number(req.body?.plays ?? 0);
-  const plays = Number.isFinite(playsRaw) && playsRaw >= 0 ? Math.floor(playsRaw) : 0;
+  const plays =
+    Number.isFinite(playsRaw) && playsRaw >= 0 ? Math.floor(playsRaw) : 0;
 
   const name_key = normalizeNameKey(name);
 
   try {
     const ins = await pool.query(
       `
-      INSERT INTO raffle_winners (floor, night_day, name, name_key, plays)
-      VALUES ($1, $2::date, $3, $4, $5)
-      RETURNING id, floor, night_day, name, plays, created_at
+      INSERT INTO raffle_winners (floor, night_day, name, name_key, table_no, plays)
+      VALUES ($1, $2::date, $3, $4, $5, $6)
+      RETURNING id, floor, night_day, name, table_no, plays, created_at
       `,
-      [floor, date, name, name_key, plays]
+      [floor, date, name, name_key, table_no, plays]
     );
+
+    // ✅ opcional útil: también refresca la ruleta al guardar ganador
+    emitRaffleUpdate(floor);
 
     return res.json({ ok: true, winner: ins.rows[0] });
   } catch (e) {
@@ -1197,8 +1188,6 @@ const PORT = process.env.PORT || 3000;
   await loadOrdersStatus();
 
   await ensureRaffleWinnersTable().catch(() => {});
-
-  // ✅ corre una vez al arrancar también
   await autoCloseIfNeeded().catch(() => {});
   await autoResetIfNeeded().catch(() => {});
 

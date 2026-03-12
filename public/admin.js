@@ -15,76 +15,89 @@ const count2 = document.getElementById("count2");
 const daysSelect = document.getElementById("daysSelect");
 const refreshStatsBtn = document.getElementById("refreshStatsBtn");
 
-const byDayBody = document.getElementById("byDayBody");
 const topSongsBody = document.getElementById("topSongsBody");
+const byDayBody = document.getElementById("byDayBody");
 
-/* ✅ Resumen diario -> botón calendario */
+/* ===========================
+   botón "Ver día"
+   =========================== */
 const dayPickBtn = document.getElementById("dayPickBtn");
 const dayPick = document.getElementById("dayPick");
 const dayPickResult = document.getElementById("dayPickResult");
 
-// Modal historial
+// Historial modal
 const histBtn1 = document.getElementById("histBtn1");
 const histBtn2 = document.getElementById("histBtn2");
-const raffleBtn1 = document.getElementById("raffleBtn1");
-const raffleBtn2 = document.getElementById("raffleBtn2");
 const histOverlay = document.getElementById("histOverlay");
 const histModal = document.getElementById("histModal");
+const histCloseBtn = document.getElementById("histCloseBtn");
 const histTitle = document.getElementById("histTitle");
 const histSub = document.getElementById("histSub");
-
-// Modal ruleta
-const raffleOverlay = document.getElementById("raffleOverlay");
-const raffleModal = document.getElementById("raffleModal");
-const raffleTitle = document.getElementById("raffleTitle");
-const raffleSub = document.getElementById("raffleSub");
-const raffleDatePill = document.getElementById("raffleDatePill");
-const raffleDate = document.getElementById("raffleDate");
-const raffleLoadBtn = document.getElementById("raffleLoadBtn");
-const raffleLoadWinnersBtn = document.getElementById("raffleLoadWinnersBtn");
-const raffleCloseBtn = document.getElementById("raffleCloseBtn");
-const raffleStatus = document.getElementById("raffleStatus");
-const raffleCount = document.getElementById("raffleCount");
-const participantsBody = document.getElementById("participantsBody");
-const winnersBody = document.getElementById("winnersBody");
-const wheelCanvas = document.getElementById("wheelCanvas");
-const raffleSpinBtn = document.getElementById("raffleSpinBtn");
-
-// ✅ CAMBIO: histWindow puede ser null (seguro)
-const histWindow = document.getElementById("histWindow"); // puede ser null
-
 const histDate = document.getElementById("histDate");
 const histLoadBtn = document.getElementById("histLoadBtn");
-const histCloseBtn = document.getElementById("histCloseBtn");
 const histStatus = document.getElementById("histStatus");
 const histBody = document.getElementById("histBody");
+const histWindow = document.getElementById("histWindow");
 
 const sumPlayed = document.getElementById("sumPlayed");
 const sumTables = document.getElementById("sumTables");
 const sumAvg = document.getElementById("sumAvg");
 const sumMax = document.getElementById("sumMax");
 
-let lastStatus = { piso1: true, piso2: true };
+// Ruleta modal
+const raffleBtn1 = document.getElementById("raffleBtn1");
+const raffleBtn2 = document.getElementById("raffleBtn2");
+const raffleOverlay = document.getElementById("raffleOverlay");
+const raffleModal = document.getElementById("raffleModal");
+const raffleCloseBtn = document.getElementById("raffleCloseBtn");
+const raffleDate = document.getElementById("raffleDate");
+const raffleSpinBtn = document.getElementById("raffleSpinBtn");
+const raffleStatus = document.getElementById("raffleStatus");
+const participantsBody = document.getElementById("participantsBody");
+const winnersBody = document.getElementById("winnersBody");
+const wheelCanvas = document.getElementById("wheelCanvas");
+
 let activeFloor = null;
 
+/* ===========================
+   HELPERS
+   =========================== */
 function esc(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(s ?? "").replace(
+    /[&<>"']/g,
+    (m) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      }[m])
+  );
 }
 
-function setTbodyEmpty(tbody, cols, msg) {
+function setTbodyEmpty(tbody, cols, text = "Sin datos") {
   if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="${cols}" class="muted">${esc(msg)}</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="${cols}" class="muted2" style="text-align:center;">${esc(
+    text
+  )}</td></tr>`;
 }
 
-function fmtTimeCL(dt) {
-  if (!dt) return "—";
+function fmtDateCL(iso) {
   try {
-    const d = new Date(dt);
+    return new Date(`${iso}T12:00:00`).toLocaleDateString("es-CL", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function fmtTimeCL(isoLike) {
+  try {
+    const d = new Date(isoLike);
     return d.toLocaleTimeString("es-CL", {
       hour: "2-digit",
       minute: "2-digit",
@@ -95,98 +108,107 @@ function fmtTimeCL(dt) {
   }
 }
 
-function fmtDateCL(isoDateOnly) {
-  try {
-    const d = new Date(isoDateOnly + "T12:00:00");
-    return d.toLocaleDateString("es-CL", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return isoDateOnly;
-  }
-}
-
-function todayISO() {
-  const t = new Date();
-  const yyyy = t.getFullYear();
-  const mm = String(t.getMonth() + 1).padStart(2, "0");
-  const dd = String(t.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 function fmtWait(min) {
-  const n = Number(min);
-  if (!Number.isFinite(n) || n < 0) return "—";
+  const n = Number(min) || 0;
   if (n < 60) return `${n} min`;
   const h = Math.floor(n / 60);
   const m = n % 60;
-  return m ? `${h} h ${m} min` : `${h} h`;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+function todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const da = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${da}`;
+}
+
+function parseNum(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/* ===========================
+   ESTADO SWITCHES
+   =========================== */
+function applySwitchUI(toggle, dot, label, open) {
+  if (toggle) toggle.checked = !!open;
+  if (dot) {
+    dot.classList.toggle("open", !!open);
+    dot.classList.toggle("closed", !open);
+  }
+  if (label) label.textContent = open ? "Abierto" : "Cerrado";
 }
 
 function applyStatus(st) {
-  lastStatus = st;
-
-  toggle1.checked = !!st.piso1;
-  label1.textContent = st.piso1 ? "Abierto" : "Cerrado";
-  dot1.classList.toggle("open", !!st.piso1);
-  dot1.classList.toggle("closed", !st.piso1);
-
-  toggle2.checked = !!st.piso2;
-  label2.textContent = st.piso2 ? "Abierto" : "Cerrado";
-  dot2.classList.toggle("open", !!st.piso2);
-  dot2.classList.toggle("closed", !st.piso2);
+  applySwitchUI(toggle1, dot1, label1, st?.piso1);
+  applySwitchUI(toggle2, dot2, label2, st?.piso2);
 }
 
 async function saveStatusPatch(patch) {
-  const prev = { ...lastStatus };
-  const next = { ...lastStatus, ...patch };
-  applyStatus(next);
-
   try {
     const r = await fetch("/api/admin/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(patch),
     });
     const j = await r.json();
-    if (!j.ok) throw new Error(j.error || "Error");
+    if (!j.ok) throw new Error(j.error || "No se pudo guardar");
     applyStatus(j.ordersOpen);
   } catch (e) {
-    applyStatus(prev);
-    alert("No se pudo guardar: " + (e.message || e));
+    alert(e.message || "Error guardando switches");
+    try {
+      const r2 = await fetch("/api/orders-status");
+      const j2 = await r2.json();
+      if (j2.ok) applyStatus(j2.ordersOpen);
+    } catch {}
   }
 }
 
-// ===== Socket =====
+/* ===========================
+   SOCKET
+   =========================== */
 socket.on("connect", () => {
-  connBadge.textContent = "En vivo";
-  connBadge.className = "badge ok";
+  if (connBadge) {
+    connBadge.textContent = "En vivo";
+    connBadge.className = "badge ok";
+  }
 });
+
 socket.on("disconnect", () => {
-  connBadge.textContent = "Desconectado";
-  connBadge.className = "badge warn";
+  if (connBadge) {
+    connBadge.textContent = "Desconectado";
+    connBadge.className = "badge warn";
+  }
 });
 
 socket.on("orders:status", (st) => applyStatus(st));
 
 socket.on("requests:update", (rows) => {
-  count1.textContent = Array.isArray(rows) ? rows.length : 0;
-});
-socket.on("requests2:update", (rows) => {
-  count2.textContent = Array.isArray(rows) ? rows.length : 0;
+  if (count1) count1.textContent = Array.isArray(rows) ? rows.length : 0;
 });
 
-// ===== Toggle =====
-toggle1.addEventListener("change", () =>
+socket.on("requests2:update", (rows) => {
+  if (count2) count2.textContent = Array.isArray(rows) ? rows.length : 0;
+});
+
+/* ===========================
+   TOGGLES
+   =========================== */
+toggle1?.addEventListener("change", () =>
   saveStatusPatch({ piso1: toggle1.checked })
 );
-toggle2.addEventListener("change", () =>
+
+toggle2?.addEventListener("change", () =>
   saveStatusPatch({ piso2: toggle2.checked })
 );
 
-// ===== Logout =====
+/* ===========================
+   LOGOUT
+   =========================== */
 logoutBtn?.addEventListener("click", async () => {
   try {
     await fetch("/auth/logout", { method: "POST" });
@@ -194,16 +216,12 @@ logoutBtn?.addEventListener("click", async () => {
   location.href = "/login";
 });
 
-// ===== Stats =====
-function parseNum(x) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : 0;
-}
-
+/* ===========================
+   STATS
+   =========================== */
 async function loadStats() {
-  const days = Number(daysSelect.value || 30);
+  const days = Number(daysSelect?.value || 30);
 
-  // by day (server ya limita a 5)
   try {
     const r = await fetch(`/api/admin/stats/by-day?days=${days}`);
     const j = await r.json();
@@ -216,10 +234,10 @@ async function loadStats() {
         .map((x, idx) => {
           const dayISO = String(x.day).slice(0, 10);
           const day = x.day ? fmtDateCL(dayISO) : "—";
-          const cls = idx === 0 ? "byday-main" : "byday-small"; // ✅ primera fila grande
-          return `<tr class="${cls}"><td>${esc(
-            day
-          )}</td><td class="right">${esc(x.plays)}</td></tr>`;
+          const cls = idx === 0 ? "byday-main" : "byday-small";
+          return `<tr class="${cls}"><td>${esc(day)}</td><td class="right">${esc(
+            x.plays
+          )}</td></tr>`;
         })
         .join("");
     }
@@ -227,13 +245,14 @@ async function loadStats() {
     setTbodyEmpty(byDayBody, 2, "Error cargando");
   }
 
-  // top songs
   try {
     const r = await fetch(`/api/admin/stats/top-songs?days=${days}`);
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
-    if (!j.rows?.length) setTbodyEmpty(topSongsBody, 3, "Sin datos");
-    else {
+
+    if (!j.rows?.length) {
+      setTbodyEmpty(topSongsBody, 3, "Sin datos");
+    } else {
       topSongsBody.innerHTML = j.rows
         .map(
           (x) => `
@@ -251,11 +270,11 @@ async function loadStats() {
   }
 }
 
-refreshStatsBtn.addEventListener("click", loadStats);
-daysSelect.addEventListener("change", loadStats);
+refreshStatsBtn?.addEventListener("click", loadStats);
+daysSelect?.addEventListener("change", loadStats);
 
 /* ===========================
-   ✅ botón "Ver día"
+   BOTÓN VER DÍA
    =========================== */
 function openDatePicker(input) {
   if (!input) return;
@@ -263,7 +282,6 @@ function openDatePicker(input) {
   else input.click();
 }
 
-// oculta el texto por defecto (para que no empuje la tabla)
 if (dayPickResult) {
   dayPickResult.textContent = "";
   dayPickResult.style.display = "none";
@@ -272,7 +290,7 @@ if (dayPickResult) {
 dayPickBtn?.addEventListener("click", () => openDatePicker(dayPick));
 
 dayPick?.addEventListener("change", async () => {
-  const date = dayPick.value; // YYYY-MM-DD
+  const date = dayPick.value;
   if (!date) return;
 
   if (dayPickResult) {
@@ -297,35 +315,40 @@ dayPick?.addEventListener("change", async () => {
   }
 });
 
-// ===== Modal helpers =====
+/* ===========================
+   MODAL HISTORIAL
+   =========================== */
 function openModal(floor) {
   activeFloor = floor;
 
-  histTitle.textContent = floor === 1 ? "Historial DJ 1" : "Historial DJ 2";
+  if (histTitle) {
+    histTitle.textContent = floor === 1 ? "Historial DJ 1" : "Historial DJ 2";
+  }
 
-  if (!histDate.value) histDate.value = todayISO();
+  if (histDate && !histDate.value) histDate.value = todayISO();
 
-  histOverlay.classList.add("open");
-  histModal.classList.add("open");
+  histOverlay?.classList.add("open");
+  histModal?.classList.add("open");
 
   loadHistory();
 }
 
 function closeModal() {
-  histOverlay.classList.remove("open");
-  histModal.classList.remove("open");
+  histOverlay?.classList.remove("open");
+  histModal?.classList.remove("open");
   activeFloor = null;
 }
 
-histOverlay.addEventListener("click", closeModal);
-histCloseBtn.addEventListener("click", closeModal);
+histOverlay?.addEventListener("click", closeModal);
+histCloseBtn?.addEventListener("click", closeModal);
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && histModal.classList.contains("open")) closeModal();
+  if (e.key === "Escape" && histModal?.classList.contains("open")) closeModal();
 });
 
-histBtn1.addEventListener("click", () => openModal(1));
-histBtn2.addEventListener("click", () => openModal(2));
-histLoadBtn.addEventListener("click", loadHistory);
+histBtn1?.addEventListener("click", () => openModal(1));
+histBtn2?.addEventListener("click", () => openModal(2));
+histLoadBtn?.addEventListener("click", loadHistory);
 
 function computeSummary(rows) {
   const total = rows.length;
@@ -356,8 +379,10 @@ function computeSummary(rows) {
 async function loadHistory() {
   if (!activeFloor) return;
 
-  const date = histDate.value;
-  histStatus.textContent = "Cargando…";
+  const date = histDate?.value;
+  if (!date) return;
+
+  if (histStatus) histStatus.textContent = "Cargando…";
   setTbodyEmpty(histBody, 5, "Cargando…");
 
   try {
@@ -367,29 +392,30 @@ async function loadHistory() {
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
 
-    histSub.textContent = `${fmtDateCL(j.date)}`;
+    if (histSub) histSub.textContent = `${fmtDateCL(j.date)}`;
     if (histWindow && typeof histWindow.textContent === "string") {
       histWindow.textContent = `${j.window.startHHMM} → ${j.window.endHHMM}`;
     }
 
     const rows = j.rows || [];
     if (!rows.length) {
-      histStatus.textContent = "Sin solicitudes reproducidas en este rango.";
-      sumPlayed.textContent = "0";
-      sumTables.textContent = "0";
-      sumAvg.textContent = "—";
-      sumMax.textContent = "—";
+      if (histStatus)
+        histStatus.textContent = "Sin solicitudes reproducidas en este rango.";
+      if (sumPlayed) sumPlayed.textContent = "0";
+      if (sumTables) sumTables.textContent = "0";
+      if (sumAvg) sumAvg.textContent = "—";
+      if (sumMax) sumMax.textContent = "—";
       setTbodyEmpty(histBody, 5, "Sin datos");
       return;
     }
 
     const s = computeSummary(rows);
-    sumPlayed.textContent = String(s.total);
-    sumTables.textContent = String(s.tables);
-    sumAvg.textContent = fmtWait(s.avg);
-    sumMax.textContent = fmtWait(s.max);
+    if (sumPlayed) sumPlayed.textContent = String(s.total);
+    if (sumTables) sumTables.textContent = String(s.tables);
+    if (sumAvg) sumAvg.textContent = fmtWait(s.avg);
+    if (sumMax) sumMax.textContent = fmtWait(s.max);
 
-    histStatus.textContent = "";
+    if (histStatus) histStatus.textContent = "";
 
     histBody.innerHTML = rows
       .map((x) => {
@@ -405,46 +431,53 @@ async function loadHistory() {
         const wait = fmtWait(x.wait_min);
 
         return `<tr>
-        <td><span class="tag">${esc(mesa)}</span></td>
-        <td>${who}${song}${artist}</td>
-        <td><span class="mono">${esc(reqT)}</span></td>
-        <td><span class="mono">${esc(playT)}</span></td>
-        <td class="right"><b>${esc(wait)}</b></td>
-      </tr>`;
+          <td><span class="tag">${esc(mesa)}</span></td>
+          <td>${who}${song}${artist}</td>
+          <td><span class="mono">${esc(reqT)}</span></td>
+          <td><span class="mono">${esc(playT)}</span></td>
+          <td class="right"><b>${esc(wait)}</b></td>
+        </tr>`;
       })
       .join("");
   } catch (e) {
-    histStatus.textContent = "Error cargando historial: " + (e.message || e);
-    sumPlayed.textContent = "—";
-    sumTables.textContent = "—";
-    sumAvg.textContent = "—";
-    sumMax.textContent = "—";
+    if (histStatus)
+      histStatus.textContent = "Error cargando historial: " + (e.message || e);
+    if (sumPlayed) sumPlayed.textContent = "—";
+    if (sumTables) sumTables.textContent = "—";
+    if (sumAvg) sumAvg.textContent = "—";
+    if (sumMax) sumMax.textContent = "—";
     setTbodyEmpty(histBody, 5, "Error cargando");
   }
 }
 
 /* ===========================
-   🎡 RULETA (por piso)
-   - GANADORES: solo Hora + Nombre (sin números)
-   - PARTICIPANTES: "Cantó X vez/veces"
-   ✅ FIX B: al ganar se elimina y se recarga desde BD
+   RULETA
    =========================== */
-
 let raffleFloor = null;
-let raffleParticipants = []; // [{name, plays}]
-let wheelRot = 0; // radians
+let raffleParticipants = []; // [{name, table_no, plays}]
+let wheelRot = 0;
 let spinning = false;
+
+let prevParticipantKeys = new Set();
+let flashParticipantKeys = new Set();
+let flashClearTimer = null;
 
 function pluralVez(n) {
   return Number(n) === 1 ? "vez" : "veces";
 }
 
-function updateRafflePill() {
-  const d = raffleDate?.value || todayISO();
-  if (raffleDatePill) raffleDatePill.textContent = fmtDateCL(d);
+function participantLabel(x) {
+  return String(x?.name ?? "").trim();
 }
 
-/* ✅ Cambiado: no mostrar "—" por defecto (para que no aparezca recuadro raro) */
+function participantKey(x) {
+  return `${String(x?.name ?? "").trim().toLowerCase()}::${String(
+    x?.table_no ?? ""
+  )
+    .trim()
+    .toLowerCase()}`;
+}
+
 function setRaffleStatus(msg) {
   if (!raffleStatus) return;
   const text = String(msg ?? "").trim();
@@ -455,17 +488,14 @@ function setRaffleStatus(msg) {
 function openRaffle(floor) {
   raffleFloor = floor;
 
-  if (raffleTitle)
-    raffleTitle.textContent = floor === 1 ? " Ruleta DJ 1" : " Ruleta DJ 2";
-  if (raffleSub) raffleSub.textContent = "";
-
   if (raffleDate && !raffleDate.value) raffleDate.value = todayISO();
-  updateRafflePill();
 
   raffleOverlay?.classList.add("open");
   raffleModal?.classList.add("open");
 
-  // carga inmediata
+  prevParticipantKeys = new Set();
+  flashParticipantKeys = new Set();
+
   loadRaffleParticipants();
   loadWinners();
 }
@@ -473,12 +503,22 @@ function openRaffle(floor) {
 function closeRaffle() {
   raffleOverlay?.classList.remove("open");
   raffleModal?.classList.remove("open");
+
   raffleFloor = null;
   raffleParticipants = [];
+  prevParticipantKeys = new Set();
+  flashParticipantKeys = new Set();
+
+  if (flashClearTimer) {
+    clearTimeout(flashClearTimer);
+    flashClearTimer = null;
+  }
+
   setRaffleStatus("");
-  if (participantsBody) setTbodyEmpty(participantsBody, 2, "—");
-  if (winnersBody) setTbodyEmpty(winnersBody, 2, "—"); // ✅ 2 cols ahora
+  setTbodyEmpty(participantsBody, 2, "—");
+  setTbodyEmpty(winnersBody, 3, "—");
   drawWheel();
+
   if (raffleSpinBtn) raffleSpinBtn.disabled = false;
   spinning = false;
 }
@@ -487,25 +527,30 @@ raffleOverlay?.addEventListener("click", closeRaffle);
 raffleCloseBtn?.addEventListener("click", closeRaffle);
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && raffleModal?.classList.contains("open"))
+  if (e.key === "Escape" && raffleModal?.classList.contains("open")) {
     closeRaffle();
+  }
 });
 
 raffleBtn1?.addEventListener("click", () => openRaffle(1));
 raffleBtn2?.addEventListener("click", () => openRaffle(2));
 
-raffleLoadBtn?.addEventListener("click", () => {
-  loadRaffleParticipants();
-});
-
-raffleLoadWinnersBtn?.addEventListener("click", () => {
-  loadWinners();
-});
-
 raffleDate?.addEventListener("change", () => {
-  updateRafflePill();
+  prevParticipantKeys = new Set();
+  flashParticipantKeys = new Set();
   loadRaffleParticipants();
   loadWinners();
+});
+
+/* actualización automática */
+socket.on("raffle:update", async (payload) => {
+  if (!raffleModal?.classList.contains("open")) return;
+  if (![1, 2].includes(raffleFloor)) return;
+
+  const floor = Number(payload?.floor);
+  if (floor && floor !== raffleFloor) return;
+
+  await loadRaffleParticipants({ keepStatus: true, highlightNew: true });
 });
 
 function wheelCtx() {
@@ -525,7 +570,6 @@ function drawWheel() {
 
   ctx.clearRect(0, 0, w, h);
 
-  // base
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(255,255,255,0.06)";
@@ -547,11 +591,15 @@ function drawWheel() {
   const arc = (Math.PI * 2) / n;
 
   for (let i = 0; i < n; i++) {
+    const item = raffleParticipants[i];
+    const isFlash = flashParticipantKeys.has(participantKey(item));
+
     const a0 = wheelRot + i * arc;
     const a1 = a0 + arc;
 
-    // colores alternados suaves
-    const light = i % 2 ? 0.1 : 0.18;
+    let light = i % 2 ? 0.1 : 0.18;
+    if (isFlash) light = 0.28;
+
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.arc(cx, cy, r, a0, a1);
@@ -559,7 +607,12 @@ function drawWheel() {
     ctx.fillStyle = `rgba(255,255,255,${light})`;
     ctx.fill();
 
-    // texto
+    if (isFlash) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,215,120,0.85)";
+      ctx.stroke();
+    }
+
     const mid = (a0 + a1) / 2;
     const tx = cx + Math.cos(mid) * (r * 0.62);
     const ty = cy + Math.sin(mid) * (r * 0.62);
@@ -567,17 +620,17 @@ function drawWheel() {
     ctx.save();
     ctx.translate(tx, ty);
     ctx.rotate(mid + Math.PI / 2);
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.font = "700 12px system-ui";
+    ctx.fillStyle = isFlash
+      ? "rgba(255,230,170,0.98)"
+      : "rgba(255,255,255,0.9)";
+    ctx.font = isFlash ? "800 12px system-ui" : "700 12px system-ui";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-
-    const label = String(raffleParticipants[i].name || "").slice(0, 16);
+    const label = participantLabel(item).slice(0, 22);
     ctx.fillText(label, 0, 0);
     ctx.restore();
   }
 
-  // centro
   ctx.beginPath();
   ctx.arc(cx, cy, 26, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(15,15,16,0.85)";
@@ -601,10 +654,7 @@ function pickWinnerFromRotation() {
   return { idx, ...raffleParticipants[idx] };
 }
 
-/* ✅ helper para renderizar tabla+ruleta desde raffleParticipants */
 function renderParticipantsFromLocal() {
-  if (raffleCount) raffleCount.textContent = String(raffleParticipants.length);
-
   if (!participantsBody) {
     drawWheel();
     return;
@@ -618,26 +668,41 @@ function renderParticipantsFromLocal() {
   }
 
   participantsBody.innerHTML = raffleParticipants
-    .map(
-      (x) => `
-      <tr>
-        <td><b>${esc(x.name)}</b></td>
+    .map((x) => {
+      const isFlash = flashParticipantKeys.has(participantKey(x));
+      return `
+      <tr class="${isFlash ? "raffle-new-row" : ""}">
+        <td>
+          <b>${esc(x.name)}</b>
+          <div class="muted2">Mesa ${esc(x.table_no ?? "—")}</div>
+        </td>
         <td class="right">Cantó ${esc(x.plays)} ${pluralVez(x.plays)}</td>
       </tr>
-    `
-    )
+    `;
+    })
     .join("");
 
   drawWheel();
 }
 
-async function loadRaffleParticipants() {
+function triggerParticipantFlash(keys) {
+  flashParticipantKeys = new Set(keys);
+
+  if (flashClearTimer) clearTimeout(flashClearTimer);
+
+  flashClearTimer = setTimeout(() => {
+    flashParticipantKeys = new Set();
+    renderParticipantsFromLocal();
+  }, 2200);
+}
+
+async function loadRaffleParticipants(opts = {}) {
   if (![1, 2].includes(raffleFloor)) return;
 
+  const { keepStatus = false, highlightNew = false } = opts;
   const date = raffleDate?.value || todayISO();
-  updateRafflePill();
 
-  setRaffleStatus("Cargando participantes…");
+  if (!keepStatus) setRaffleStatus("Cargando participantes…");
   setTbodyEmpty(participantsBody, 2, "Cargando…");
 
   try {
@@ -649,14 +714,27 @@ async function loadRaffleParticipants() {
     const j = await r.json();
     if (!j.ok) throw new Error(j.error || "Error");
 
-    raffleParticipants = (j.rows || []).map((x) => ({
+    const nextRows = (j.rows || []).map((x) => ({
       name: x.name,
+      table_no: x.table_no ?? null,
       plays: Number(x.plays) || 0,
     }));
 
+    const nextKeys = new Set(nextRows.map(participantKey));
+    const newKeys = [];
+
+    if (highlightNew) {
+      for (const item of nextRows) {
+        const k = participantKey(item);
+        if (!prevParticipantKeys.has(k)) newKeys.push(k);
+      }
+    }
+
+    raffleParticipants = nextRows;
+    prevParticipantKeys = nextKeys;
+
     if (!raffleParticipants.length) {
-      // ✅ sin recuadro molesto: dejamos tabla vacía y ocultamos status
-      setRaffleStatus("");
+      if (!keepStatus) setRaffleStatus("");
       setTbodyEmpty(participantsBody, 2, "Sin participantes");
       wheelRot = 0;
       drawWheel();
@@ -664,15 +742,29 @@ async function loadRaffleParticipants() {
       return;
     }
 
+    if (newKeys.length) {
+      triggerParticipantFlash(newKeys);
+      setRaffleStatus("✨ Nuevo concursante agregado a la ruleta");
+    } else if (!keepStatus) {
+      setRaffleStatus("");
+    }
+
     renderParticipantsFromLocal();
-    setRaffleStatus(""); // ✅ limpio
-    wheelRot = 0;
-    drawWheel();
     if (raffleSpinBtn) raffleSpinBtn.disabled = false;
+
+    if (newKeys.length) {
+      setTimeout(() => {
+        if (
+          raffleStatus?.textContent ===
+          "✨ Nuevo concursante agregado a la ruleta"
+        ) {
+          setRaffleStatus("");
+        }
+      }, 1800);
+    }
   } catch {
     raffleParticipants = [];
-    if (raffleCount) raffleCount.textContent = "0";
-    setRaffleStatus("");
+    if (!keepStatus) setRaffleStatus("");
     setTbodyEmpty(participantsBody, 2, "Error cargando");
     wheelRot = 0;
     drawWheel();
@@ -684,10 +776,8 @@ async function loadWinners() {
   if (![1, 2].includes(raffleFloor)) return;
 
   const date = raffleDate?.value || todayISO();
-  updateRafflePill();
 
-  // ✅ ahora la tabla de ganadores tiene 2 columnas (Hora, Nombre)
-  setTbodyEmpty(winnersBody, 2, "Cargando…");
+  setTbodyEmpty(winnersBody, 3, "Cargando…");
 
   try {
     const r = await fetch(
@@ -700,23 +790,25 @@ async function loadWinners() {
 
     const rows = j.rows || [];
     if (!rows.length) {
-      setTbodyEmpty(winnersBody, 2, "Sin ganadores todavía");
+      setTbodyEmpty(winnersBody, 3, "Sin ganadores todavía");
       return;
     }
 
-    // ✅ SIN columna de plays
     winnersBody.innerHTML = rows
       .map(
         (w) => `
       <tr>
         <td class="mono">${esc(fmtTimeCL(w.created_at))}</td>
-        <td><b>${esc(w.name)}</b></td>
+        <td><div class="winner-row-name">${esc(w.name)}</div></td>
+        <td><span class="winner-badge">Mesa ${esc(
+          w.table_no ?? "—"
+        )}</span></td>
       </tr>
     `
       )
       .join("");
   } catch {
-    setTbodyEmpty(winnersBody, 2, "Error cargando ganadores");
+    setTbodyEmpty(winnersBody, 3, "Error cargando ganadores");
   }
 }
 
@@ -743,7 +835,6 @@ async function spinWheel() {
 
   const start = wheelRot;
   const delta = target - start;
-
   const dur = 2600;
   const t0 = performance.now();
 
@@ -772,12 +863,14 @@ async function spinWheel() {
     }
 
     const winnerName = w.name;
+    const winnerTable = w.table_no;
     const winnerPlays = w.plays;
+    const winnerKey = participantKey(w);
 
-    // ✅ status limpio (sin recuadro permanente)
-    setRaffleStatus(`🏆 Ganador: ${winnerName}`);
+    setRaffleStatus(
+      `🏆 Ganador: ${winnerName}${winnerTable ? ` · Mesa ${winnerTable}` : ""}`
+    );
 
-    // 1) Guardar ganador en BD
     try {
       const date = raffleDate?.value || todayISO();
       await fetch("/api/admin/raffle/winners", {
@@ -787,30 +880,31 @@ async function spinWheel() {
           floor: raffleFloor,
           date,
           name: winnerName,
+          table: winnerTable,
           plays: winnerPlays,
         }),
       });
     } catch {}
 
-    // 2) ✅ ELIMINAR INMEDIATO (visual) del array local + redibujar
-    raffleParticipants = raffleParticipants.filter((p) => p.name !== winnerName);
+    raffleParticipants = raffleParticipants.filter(
+      (p) => participantKey(p) !== winnerKey
+    );
+    prevParticipantKeys = new Set(raffleParticipants.map(participantKey));
     renderParticipantsFromLocal();
 
-    // 3) Cargar ganadores del día
     await loadWinners();
+    await loadRaffleParticipants({ keepStatus: true, highlightNew: false });
 
-    // 4) ✅ FIX B: recargar participantes desde servidor (ya excluye ganadores)
-    // Esto asegura que aunque haya duplicados/espacios/keys, quede siempre consistente.
-    await loadRaffleParticipants();
+    if (raffleSpinBtn) {
+      raffleSpinBtn.disabled = raffleParticipants.length === 0;
+    }
 
-    // Si quedaron 0 participantes, deshabilitar girar
-    if (raffleSpinBtn) raffleSpinBtn.disabled = raffleParticipants.length === 0;
-
-    // ocultar status después de un rato (para que no quede el “recuadro” ocupando espacio)
     setTimeout(() => setRaffleStatus(""), 1800);
 
     spinning = false;
-    if (raffleSpinBtn) raffleSpinBtn.disabled = raffleParticipants.length === 0;
+    if (raffleSpinBtn) {
+      raffleSpinBtn.disabled = raffleParticipants.length === 0;
+    }
   }
 
   requestAnimationFrame(frame);
@@ -818,12 +912,13 @@ async function spinWheel() {
 
 raffleSpinBtn?.addEventListener("click", spinWheel);
 
-// dibuja al cargar
 try {
   drawWheel();
 } catch {}
 
-// ===== bootstrap =====
+/* ===========================
+   BOOT
+   =========================== */
 (async function boot() {
   try {
     const r = await fetch("/api/orders-status");
