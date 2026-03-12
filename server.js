@@ -1,4 +1,3 @@
-// server.js
 import "dotenv/config";
 import express from "express";
 import http from "http";
@@ -684,7 +683,7 @@ app.delete("/api/requests/:id", async (req, res) => {
     });
 
     await emitRequests();
-    emitRaffleUpdate(1); // ✅ NUEVO: refresca ruleta automáticamente
+    emitRaffleUpdate(1);
     return res.json({ ok: true, playedLogged: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
@@ -777,7 +776,7 @@ app.delete("/api/requests2/:id", async (req, res) => {
     });
 
     await emitRequests();
-    emitRaffleUpdate(2); // ✅ NUEVO: refresca ruleta automáticamente
+    emitRaffleUpdate(2);
     return res.json({ ok: true, playedLogged: true });
   } catch (e) {
     return res.status(500).json({ ok: false, error: e.message });
@@ -1063,7 +1062,7 @@ app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => 
           WHERE rw.floor = $1
             AND rw.night_day = $2::date
             AND rw.name_key = lower(trim(p.name))
-            COALESCE(lower(trim(rw.table_no)), '') = COALESCE(lower(trim(p.table_no::text)), '')
+            AND COALESCE(lower(trim(rw.table_no)), '') = COALESCE(lower(trim(p.table_no::text)), '')
         )
       GROUP BY p.name, p.table_no::text
       HAVING COUNT(*) >= $4
@@ -1154,7 +1153,6 @@ app.post("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
       [floor, date, name, name_key, table_no, plays]
     );
 
-    // ✅ opcional útil: también refresca la ruleta al guardar ganador
     emitRaffleUpdate(floor);
 
     return res.json({ ok: true, winner: ins.rows[0] });
