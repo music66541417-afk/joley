@@ -1051,7 +1051,7 @@ app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => 
       )
       SELECT
         p.name,
-        p.table_no,
+        p.table_no::text AS table_no,
         COUNT(*)::int AS plays
       FROM plays p, win
       WHERE p.piso = $1
@@ -1063,11 +1063,11 @@ app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => 
           WHERE rw.floor = $1
             AND rw.night_day = $2::date
             AND rw.name_key = lower(trim(p.name))
-            AND COALESCE(lower(trim(rw.table_no)), '') = COALESCE(lower(trim(p.table_no)), '')
+            COALESCE(lower(trim(rw.table_no)), '') = COALESCE(lower(trim(p.table_no::text)), '')
         )
-      GROUP BY p.name, p.table_no
+      GROUP BY p.name, p.table_no::text
       HAVING COUNT(*) >= $4
-      ORDER BY plays DESC, p.name ASC, p.table_no ASC
+      ORDER BY plays DESC, p.name ASC, p.table_no::text ASC
       LIMIT 200
       `,
       [floor, date, TZ_CHILE, min]
