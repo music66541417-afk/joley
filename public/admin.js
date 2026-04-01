@@ -5,12 +5,19 @@ const logoutBtn = document.getElementById("logoutBtn");
 
 const toggle1 = document.getElementById("toggle1");
 const toggle2 = document.getElementById("toggle2");
+const toggle3 = document.getElementById("toggle3");
+
 const dot1 = document.getElementById("dot1");
 const dot2 = document.getElementById("dot2");
+const dot3 = document.getElementById("dot3");
+
 const label1 = document.getElementById("label1");
 const label2 = document.getElementById("label2");
+const label3 = document.getElementById("label3");
+
 const count1 = document.getElementById("count1");
 const count2 = document.getElementById("count2");
+const count3 = document.getElementById("count3");
 
 const daysSelect = document.getElementById("daysSelect");
 const refreshStatsBtn = document.getElementById("refreshStatsBtn");
@@ -28,6 +35,8 @@ const dayPickResult = document.getElementById("dayPickResult");
 // Historial modal
 const histBtn1 = document.getElementById("histBtn1");
 const histBtn2 = document.getElementById("histBtn2");
+const histBtn3 = document.getElementById("histBtn3");
+
 const histOverlay = document.getElementById("histOverlay");
 const histModal = document.getElementById("histModal");
 const histCloseBtn = document.getElementById("histCloseBtn");
@@ -47,6 +56,8 @@ const sumMax = document.getElementById("sumMax");
 // Ruleta modal
 const raffleBtn1 = document.getElementById("raffleBtn1");
 const raffleBtn2 = document.getElementById("raffleBtn2");
+const raffleBtn3 = document.getElementById("raffleBtn3");
+
 const raffleOverlay = document.getElementById("raffleOverlay");
 const raffleModal = document.getElementById("raffleModal");
 const raffleCloseBtn = document.getElementById("raffleCloseBtn");
@@ -144,6 +155,7 @@ function applySwitchUI(toggle, dot, label, open) {
 function applyStatus(st) {
   applySwitchUI(toggle1, dot1, label1, st?.piso1);
   applySwitchUI(toggle2, dot2, label2, st?.piso2);
+  applySwitchUI(toggle3, dot3, label3, st?.piso3);
 }
 
 async function saveStatusPatch(patch) {
@@ -195,6 +207,10 @@ socket.on("requests2:update", (rows) => {
   if (count2) count2.textContent = Array.isArray(rows) ? rows.length : 0;
 });
 
+socket.on("requests3:update", (rows) => {
+  if (count3) count3.textContent = Array.isArray(rows) ? rows.length : 0;
+});
+
 /* ===========================
    TOGGLES
    =========================== */
@@ -204,6 +220,10 @@ toggle1?.addEventListener("change", () =>
 
 toggle2?.addEventListener("change", () =>
   saveStatusPatch({ piso2: toggle2.checked })
+);
+
+toggle3?.addEventListener("change", () =>
+  saveStatusPatch({ piso3: toggle3.checked })
 );
 
 /* ===========================
@@ -322,7 +342,10 @@ function openModal(floor) {
   activeFloor = floor;
 
   if (histTitle) {
-    histTitle.textContent = floor === 1 ? "Historial DJ 1" : "Historial DJ 2";
+    histTitle.textContent =
+      floor === 1 ? "Historial DJ 1" :
+      floor === 2 ? "Historial DJ 2" :
+      "Historial DJ 3";
   }
 
   if (histDate && !histDate.value) histDate.value = todayISO();
@@ -348,6 +371,7 @@ document.addEventListener("keydown", (e) => {
 
 histBtn1?.addEventListener("click", () => openModal(1));
 histBtn2?.addEventListener("click", () => openModal(2));
+histBtn3?.addEventListener("click", () => openModal(3));
 histLoadBtn?.addEventListener("click", loadHistory);
 
 function computeSummary(rows) {
@@ -534,6 +558,7 @@ document.addEventListener("keydown", (e) => {
 
 raffleBtn1?.addEventListener("click", () => openRaffle(1));
 raffleBtn2?.addEventListener("click", () => openRaffle(2));
+raffleBtn3?.addEventListener("click", () => openRaffle(3));
 
 raffleDate?.addEventListener("change", () => {
   prevParticipantKeys = new Set();
@@ -545,7 +570,7 @@ raffleDate?.addEventListener("change", () => {
 /* actualización automática */
 socket.on("raffle:update", async (payload) => {
   if (!raffleModal?.classList.contains("open")) return;
-  if (![1, 2].includes(raffleFloor)) return;
+  if (![1, 2, 3].includes(raffleFloor)) return;
 
   const floor = Number(payload?.floor);
   if (floor && floor !== raffleFloor) return;
@@ -697,7 +722,7 @@ function triggerParticipantFlash(keys) {
 }
 
 async function loadRaffleParticipants(opts = {}) {
-  if (![1, 2].includes(raffleFloor)) return;
+  if (![1, 2, 3].includes(raffleFloor)) return;
 
   const { keepStatus = false, highlightNew = false } = opts;
   const date = raffleDate?.value || todayISO();
@@ -773,7 +798,7 @@ async function loadRaffleParticipants(opts = {}) {
 }
 
 async function loadWinners() {
-  if (![1, 2].includes(raffleFloor)) return;
+  if (![1, 2, 3].includes(raffleFloor)) return;
 
   const date = raffleDate?.value || todayISO();
 

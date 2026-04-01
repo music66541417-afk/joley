@@ -15,8 +15,8 @@
   input:checked + .slider{ background:rgba(78,225,138,0.16); border-color:rgba(78,225,138,0.75); }
   input:checked + .slider:before{ transform:translateX(24px); background:rgba(78,225,138,0.45); border-color:rgba(78,225,138,0.75); }
 
-  .admin-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
-  @media (max-width: 900px){ .admin-grid{ grid-template-columns:1fr; } }
+  .admin-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:16px; }
+  @media (max-width: 1200px){ .admin-grid{ grid-template-columns:1fr; } }
 
   .rowline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; }
   .big{ font-size:28px; font-weight:900; letter-spacing:.5px; }
@@ -498,6 +498,35 @@
 
             <label class="switch" title="Abrir/Cerrar pedidos Piso 2">
               <input type="checkbox" id="toggle2" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="max-width:none;">
+        <div class="h2">DJ 3</div>
+
+        <div class="rowline">
+          <div class="muted">Solicitudes activas</div>
+          <div class="big" id="count3">0</div>
+        </div>
+
+        <div class="rowline">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span class="orders-dot open" id="dot3"></span>
+            <div>
+              <div style="font-weight:900;">Pedidos</div>
+              <div class="muted" id="label3">Abierto</div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button class="hist-btn" id="histBtn3" type="button">🕘 Historial</button>
+            <button class="hist-btn" id="raffleBtn3" type="button">🏆 Ruleta</button>
+
+            <label class="switch" title="Abrir/Cerrar pedidos Piso 3">
+              <input type="checkbox" id="toggle3" checked>
               <span class="slider"></span>
             </label>
           </div>

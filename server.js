@@ -29,6 +29,51 @@ pool
   .catch((e) => console.log("⚠️ DB aún no responde:", e.message));
 
 // =======================
+// Asegurar tablas/columnas nuevas
+// =======================
+async function ensureProjectTables() {
+  try {
+    // requests3
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS requests3 (
+        id SERIAL PRIMARY KEY,
+        table_no TEXT NOT NULL,
+        name TEXT NOT NULL,
+        artist TEXT NOT NULL,
+        song TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    // orders_status base + piso3
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders_status (
+        id INT PRIMARY KEY,
+        piso1 BOOLEAN NOT NULL DEFAULT TRUE,
+        piso2 BOOLEAN NOT NULL DEFAULT TRUE,
+        piso3 BOOLEAN NOT NULL DEFAULT TRUE,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE orders_status
+      ADD COLUMN IF NOT EXISTS piso3 BOOLEAN NOT NULL DEFAULT TRUE
+    `);
+
+    await pool.query(`
+      INSERT INTO orders_status (id, piso1, piso2, piso3)
+      VALUES (1, TRUE, TRUE, TRUE)
+      ON CONFLICT (id) DO NOTHING
+    `);
+
+    console.log("✅ requests3 / orders_status OK");
+  } catch (e) {
+    console.log("⚠️ No pude asegurar tablas base:", e.message);
+  }
+}
+
+// =======================
 // 🎁 Raffle Winners: asegurar tabla (auto-create)
 // =======================
 async function ensureRaffleWinnersTable() {
@@ -36,7 +81,7 @@ async function ensureRaffleWinnersTable() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS raffle_winners (
         id SERIAL PRIMARY KEY,
-        floor INT NOT NULL CHECK (floor IN (1,2)),
+        floor INT NOT NULL CHECK (floor IN (1,2,3)),
         night_day DATE NOT NULL,
         name TEXT NOT NULL,
         name_key TEXT NOT NULL,
@@ -49,6 +94,33 @@ async function ensureRaffleWinnersTable() {
     await pool.query(`
       ALTER TABLE raffle_winners
       ADD COLUMN IF NOT EXISTS table_no TEXT
+    `);
+
+    // Reemplaza cualquier check antiguo floor IN (1,2)
+    await pool.query(`
+      DO $$
+      DECLARE cname text;
+      BEGIN
+        SELECT con.conname
+        INTO cname
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = con.connamespace
+        WHERE rel.relname = 'raffle_winners'
+          AND nsp.nspname = current_schema()
+          AND con.contype = 'c'
+          AND pg_get_constraintdef(con.oid) ILIKE '%floor%';
+
+        IF cname IS NOT NULL THEN
+          EXECUTE format('ALTER TABLE raffle_winners DROP CONSTRAINT %I', cname);
+        END IF;
+
+        ALTER TABLE raffle_winners
+        ADD CONSTRAINT raffle_winners_floor_check CHECK (floor IN (1,2,3));
+      EXCEPTION
+        WHEN duplicate_object THEN
+          NULL;
+      END $$;
     `);
 
     await pool.query(`
@@ -102,7 +174,7 @@ app.use(
 // Bloquear acceso directo a HTML sensibles
 // =======================
 app.use((req, res, next) => {
-  const blocked = new Set(["/dj.html", "/dj2.html", "/admin.html"]);
+  const blocked = new Set(["/dj.html", "/dj2.html", "/dj3.html", "/admin.html"]);
   if (!blocked.has(req.path)) return next();
 
   if (!req.session?.user) {
@@ -112,6 +184,7 @@ app.use((req, res, next) => {
   const map = {
     "/dj.html": "/dj",
     "/dj2.html": "/dj2",
+    "/dj3.html": "/dj3",
     "/admin.html": "/admin",
   };
   return res.redirect(map[req.path] || "/");
@@ -173,13 +246,25 @@ async function getRequestsPiso2() {
   return q.rows.map(rowToRequest);
 }
 
-async function emitRequests() {
-  const [r1, r2] = await Promise.all([getRequestsPiso1(), getRequestsPiso2()]);
-  io.emit("requests:update", r1);
-  io.emit("requests2:update", r2);
+async function getRequestsPiso3() {
+  const q = await pool.query(
+    "SELECT id, table_no, name, artist, song, created_at FROM requests3 ORDER BY id ASC"
+  );
+  return q.rows.map(rowToRequest);
 }
 
-// ✅ NUEVO: avisar a la ruleta que cambió la lista de concursantes
+async function emitRequests() {
+  const [r1, r2, r3] = await Promise.all([
+    getRequestsPiso1(),
+    getRequestsPiso2(),
+    getRequestsPiso3(),
+  ]);
+  io.emit("requests:update", r1);
+  io.emit("requests2:update", r2);
+  io.emit("requests3:update", r3);
+}
+
+// ✅ avisar a la ruleta que cambió la lista de concursantes
 function emitRaffleUpdate(floor) {
   io.emit("raffle:update", {
     floor,
@@ -190,24 +275,34 @@ function emitRaffleUpdate(floor) {
 // =======================
 // Estado pedidos (DB: orders_status)
 // =======================
-let ordersOpen = { piso1: true, piso2: true };
+let ordersOpen = { piso1: true, piso2: true, piso3: true };
 
 async function loadOrdersStatus() {
   try {
+    await pool.query(`
+      ALTER TABLE orders_status
+      ADD COLUMN IF NOT EXISTS piso3 BOOLEAN NOT NULL DEFAULT TRUE
+    `);
+
     const q = await pool.query(
-      "SELECT piso1, piso2 FROM orders_status WHERE id=1"
+      "SELECT piso1, piso2, piso3 FROM orders_status WHERE id=1"
     );
+
     if (q.rowCount) {
-      ordersOpen = { piso1: !!q.rows[0].piso1, piso2: !!q.rows[0].piso2 };
+      ordersOpen = {
+        piso1: !!q.rows[0].piso1,
+        piso2: !!q.rows[0].piso2,
+        piso3: !!q.rows[0].piso3,
+      };
     } else {
       await pool.query(
-        "INSERT INTO orders_status (id, piso1, piso2) VALUES (1, TRUE, TRUE) ON CONFLICT (id) DO NOTHING"
+        "INSERT INTO orders_status (id, piso1, piso2, piso3) VALUES (1, TRUE, TRUE, TRUE) ON CONFLICT (id) DO NOTHING"
       );
-      ordersOpen = { piso1: true, piso2: true };
+      ordersOpen = { piso1: true, piso2: true, piso3: true };
     }
   } catch (e) {
     console.log("⚠️ No pude cargar orders_status:", e.message);
-    ordersOpen = { piso1: true, piso2: true };
+    ordersOpen = { piso1: true, piso2: true, piso3: true };
   }
 }
 
@@ -221,9 +316,13 @@ app.get("/api/orders-status", async (req, res) => {
 });
 
 app.post("/api/admin/orders", requireAdmin, async (req, res) => {
-  const { piso1, piso2 } = req.body || {};
+  const { piso1, piso2, piso3 } = req.body || {};
 
-  if (typeof piso1 !== "boolean" && typeof piso2 !== "boolean") {
+  if (
+    typeof piso1 !== "boolean" &&
+    typeof piso2 !== "boolean" &&
+    typeof piso3 !== "boolean"
+  ) {
     return res.status(400).json({ ok: false, error: "Payload inválido" });
   }
 
@@ -232,12 +331,13 @@ app.post("/api/admin/orders", requireAdmin, async (req, res) => {
   const newStatus = {
     piso1: typeof piso1 === "boolean" ? piso1 : ordersOpen.piso1,
     piso2: typeof piso2 === "boolean" ? piso2 : ordersOpen.piso2,
+    piso3: typeof piso3 === "boolean" ? piso3 : ordersOpen.piso3,
   };
 
   try {
     await pool.query(
-      "UPDATE orders_status SET piso1=$1, piso2=$2, updated_at=NOW() WHERE id=1",
-      [newStatus.piso1, newStatus.piso2]
+      "UPDATE orders_status SET piso1=$1, piso2=$2, piso3=$3, updated_at=NOW() WHERE id=1",
+      [newStatus.piso1, newStatus.piso2, newStatus.piso3]
     );
     ordersOpen = newStatus;
     emitOrdersStatus();
@@ -265,6 +365,7 @@ app.get("/health/db", async (req, res) => {
 const TZ_CHILE = process.env.TZ_CHILE || "America/Santiago";
 const CUTOFF_PISO1_HHMM = process.env.CUTOFF_PISO1 || "03:30";
 const CUTOFF_PISO2_HHMM = process.env.CUTOFF_PISO2 || "02:30";
+const CUTOFF_PISO3_HHMM = process.env.CUTOFF_PISO3 || "02:30";
 const RESET_HHMM = process.env.RESET_HHMM || "12:00";
 
 function hhmmToMinutes(hhmm) {
@@ -278,6 +379,7 @@ function hhmmToMinutes(hhmm) {
 
 const cutoffPiso1 = hhmmToMinutes(CUTOFF_PISO1_HHMM) ?? 3 * 60 + 30;
 const cutoffPiso2 = hhmmToMinutes(CUTOFF_PISO2_HHMM) ?? 2 * 60 + 30;
+const cutoffPiso3 = hhmmToMinutes(CUTOFF_PISO3_HHMM) ?? 2 * 60 + 30;
 const resetMin = hhmmToMinutes(RESET_HHMM) ?? 12 * 60;
 
 function getChileMinutesNow() {
@@ -297,9 +399,21 @@ function isClosed(nowMin, cutoffMin) {
   return nowMin >= cutoffMin && nowMin < resetMin;
 }
 
+function getFloorCutoffMin(floor) {
+  if (floor === 2) return cutoffPiso2;
+  if (floor === 3) return cutoffPiso3;
+  return cutoffPiso1;
+}
+
+function getFloorCutoffHHMM(floor) {
+  if (floor === 2) return CUTOFF_PISO2_HHMM;
+  if (floor === 3) return CUTOFF_PISO3_HHMM;
+  return CUTOFF_PISO1_HHMM;
+}
+
 function rejectIfClosedForFloor(floor) {
   const nowMin = getChileMinutesNow();
-  const cutoffMin = floor === 2 ? cutoffPiso2 : cutoffPiso1;
+  const cutoffMin = getFloorCutoffMin(floor);
 
   if (isClosed(nowMin, cutoffMin)) {
     return {
@@ -308,7 +422,7 @@ function rejectIfClosedForFloor(floor) {
       floor,
       tz: TZ_CHILE,
       nowMinutes: nowMin,
-      cutoff: floor === 2 ? CUTOFF_PISO2_HHMM : CUTOFF_PISO1_HHMM,
+      cutoff: getFloorCutoffHHMM(floor),
       reset: RESET_HHMM,
       reason: "schedule",
     };
@@ -333,6 +447,14 @@ function rejectIfAdminClosed(floor) {
       reason: "admin",
     };
   }
+  if (floor === 3 && !ordersOpen.piso3) {
+    return {
+      ok: false,
+      error: "Lo sentimos, pedidos no disponibles.",
+      floor: 3,
+      reason: "admin",
+    };
+  }
   return null;
 }
 
@@ -344,6 +466,7 @@ app.get("/api/hours", (req, res) => {
     nowMinutes: nowMin,
     piso1: { cutoff: CUTOFF_PISO1_HHMM, closed: isClosed(nowMin, cutoffPiso1) },
     piso2: { cutoff: CUTOFF_PISO2_HHMM, closed: isClosed(nowMin, cutoffPiso2) },
+    piso3: { cutoff: CUTOFF_PISO3_HHMM, closed: isClosed(nowMin, cutoffPiso3) },
     reset: RESET_HHMM,
   });
 });
@@ -365,7 +488,7 @@ function getChileDateKey() {
   return `${y}-${m}-${d}`;
 }
 
-let lastAutoClose = { piso1: null, piso2: null };
+let lastAutoClose = { piso1: null, piso2: null, piso3: null };
 
 async function autoCloseIfNeeded() {
   await loadOrdersStatus();
@@ -375,6 +498,7 @@ async function autoCloseIfNeeded() {
 
   const inWindowP1 = nowMin >= cutoffPiso1 && nowMin < resetMin;
   const inWindowP2 = nowMin >= cutoffPiso2 && nowMin < resetMin;
+  const inWindowP3 = nowMin >= cutoffPiso3 && nowMin < resetMin;
 
   const needsCloseP1 =
     inWindowP1 && ordersOpen.piso1 === true && lastAutoClose.piso1 !== dayKey;
@@ -382,23 +506,28 @@ async function autoCloseIfNeeded() {
   const needsCloseP2 =
     inWindowP2 && ordersOpen.piso2 === true && lastAutoClose.piso2 !== dayKey;
 
-  if (!needsCloseP1 && !needsCloseP2) return;
+  const needsCloseP3 =
+    inWindowP3 && ordersOpen.piso3 === true && lastAutoClose.piso3 !== dayKey;
+
+  if (!needsCloseP1 && !needsCloseP2 && !needsCloseP3) return;
 
   const newStatus = {
     piso1: needsCloseP1 ? false : ordersOpen.piso1,
     piso2: needsCloseP2 ? false : ordersOpen.piso2,
+    piso3: needsCloseP3 ? false : ordersOpen.piso3,
   };
 
   try {
     await pool.query(
-      "UPDATE orders_status SET piso1=$1, piso2=$2, updated_at=NOW() WHERE id=1",
-      [newStatus.piso1, newStatus.piso2]
+      "UPDATE orders_status SET piso1=$1, piso2=$2, piso3=$3, updated_at=NOW() WHERE id=1",
+      [newStatus.piso1, newStatus.piso2, newStatus.piso3]
     );
 
     ordersOpen = newStatus;
 
     if (needsCloseP1) lastAutoClose.piso1 = dayKey;
     if (needsCloseP2) lastAutoClose.piso2 = dayKey;
+    if (needsCloseP3) lastAutoClose.piso3 = dayKey;
 
     emitOrdersStatus();
   } catch (e) {
@@ -418,16 +547,16 @@ async function autoResetIfNeeded() {
 
   if (!inResetWindow || lastAutoReset === dayKey) return;
 
-  const newStatus = { piso1: true, piso2: true };
+  const newStatus = { piso1: true, piso2: true, piso3: true };
 
   try {
     await pool.query(
-      "UPDATE orders_status SET piso1=$1, piso2=$2, updated_at=NOW() WHERE id=1",
-      [newStatus.piso1, newStatus.piso2]
+      "UPDATE orders_status SET piso1=$1, piso2=$2, piso3=$3, updated_at=NOW() WHERE id=1",
+      [newStatus.piso1, newStatus.piso2, newStatus.piso3]
     );
 
     ordersOpen = newStatus;
-    lastAutoClose = { piso1: null, piso2: null };
+    lastAutoClose = { piso1: null, piso2: null, piso3: null };
     lastAutoReset = dayKey;
 
     emitOrdersStatus();
@@ -458,12 +587,18 @@ app.get("/piso1", (req, res) =>
 app.get("/piso2", (req, res) =>
   res.sendFile(process.cwd() + "/public/arriba.html")
 );
+app.get("/piso3", (req, res) =>
+  res.sendFile(process.cwd() + "/public/piso3.html")
+);
 
 app.get("/dj", requireDjRoute("/dj"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj.html")
 );
 app.get("/dj2", requireDjRoute("/dj2"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj2.html")
+);
+app.get("/dj3", requireDjRoute("/dj3"), (req, res) =>
+  res.sendFile(process.cwd() + "/public/dj3.html")
 );
 app.get("/admin", requireDjRoute("/admin"), (req, res) =>
   res.sendFile(process.cwd() + "/public/admin.html")
@@ -794,6 +929,99 @@ app.delete("/api/requests2", async (req, res) => {
 });
 
 // =======================
+// Requests Piso 3
+// =======================
+app.post("/api/requests3", async (req, res) => {
+  await loadOrdersStatus();
+
+  const closedByAdmin = rejectIfAdminClosed(3);
+  if (closedByAdmin) return res.status(403).json(closedByAdmin);
+
+  const error = validatePayload(req.body);
+  if (error) return res.status(400).json({ ok: false, error });
+
+  try {
+    const { table, name, artist, song } = req.body;
+
+    const key = `p3:${String(table)}`;
+    const cd = checkCooldownOrNull(key);
+    if (cd) {
+      return res.status(429).json({
+        ok: false,
+        error: `⏳ Espera ${cd.wait}s antes de enviar otra solicitud.`,
+        reason: "cooldown",
+        floor: 3,
+      });
+    }
+
+    const q = await pool.query(
+      `INSERT INTO requests3 (table_no, name, artist, song)
+       VALUES ($1,$2,$3,$4)
+       RETURNING id, table_no, name, artist, song, created_at`,
+      [String(table), name, artist, song]
+    );
+
+    await emitRequests();
+    return res.json({ ok: true, item: rowToRequest(q.rows[0]) });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get("/api/requests3", async (req, res) => {
+  try {
+    const requests = await getRequestsPiso3();
+    res.json({ ok: true, requests });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete("/api/requests3/:id", async (req, res) => {
+  const id = Number(req.params.id);
+
+  try {
+    const removed = await pool.query(
+      `DELETE FROM requests3 WHERE id=$1
+       RETURNING table_no, name, artist, song, created_at`,
+      [id]
+    );
+
+    if (!removed.rowCount) {
+      await emitRequests();
+      return res.json({ ok: true, playedLogged: false });
+    }
+
+    const r = removed.rows[0];
+
+    await insertPlaySafe({
+      piso: 3,
+      table_no: r.table_no,
+      name: r.name,
+      artist: r.artist,
+      song: r.song,
+      requested_at: r.created_at,
+    });
+
+    await emitRequests();
+    emitRaffleUpdate(3);
+    return res.json({ ok: true, playedLogged: true });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete("/api/requests3", async (req, res) => {
+  try {
+    await pool.query("DELETE FROM requests3");
+    await emitRequests();
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// =======================
 // Admin Stats
 // =======================
 function parseDays(x, fallback) {
@@ -811,7 +1039,8 @@ app.get("/api/admin/stats/summary", requireAdmin, async (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM plays WHERE played_at >= NOW() - ($1 || ' days')::interval) AS total,
         (SELECT COUNT(*) FROM plays WHERE piso=1 AND played_at >= NOW() - ($1 || ' days')::interval) AS piso1,
-        (SELECT COUNT(*) FROM plays WHERE piso=2 AND played_at >= NOW() - ($1 || ' days')::interval) AS piso2
+        (SELECT COUNT(*) FROM plays WHERE piso=2 AND played_at >= NOW() - ($1 || ' days')::interval) AS piso2,
+        (SELECT COUNT(*) FROM plays WHERE piso=3 AND played_at >= NOW() - ($1 || ' days')::interval) AS piso3
       `,
       [days]
     );
@@ -976,7 +1205,7 @@ function getChileNightDateKey() {
 
 app.get("/api/admin/history", requireAdmin, async (req, res) => {
   const piso = Number(req.query.floor);
-  if (![1, 2].includes(piso)) {
+  if (![1, 2, 3].includes(piso)) {
     return res.status(400).json({ ok: false, error: "floor inválido" });
   }
 
@@ -1028,8 +1257,8 @@ app.get("/api/admin/history", requireAdmin, async (req, res) => {
 // =======================
 app.get("/api/admin/stats/top-singers-night", requireAdmin, async (req, res) => {
   const floor = Number(req.query.floor);
-  if (![1, 2].includes(floor)) {
-    return res.status(400).json({ ok: false, error: "floor inválido (1 o 2)" });
+  if (![1, 2, 3].includes(floor)) {
+    return res.status(400).json({ ok: false, error: "floor inválido (1, 2 o 3)" });
   }
 
   const date = isValidISODateOnly(req.query.date)
@@ -1094,8 +1323,8 @@ function normalizeNameKey(x) {
 
 app.get("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
   const floor = Number(req.query.floor);
-  if (![1, 2].includes(floor)) {
-    return res.status(400).json({ ok: false, error: "floor inválido (1 o 2)" });
+  if (![1, 2, 3].includes(floor)) {
+    return res.status(400).json({ ok: false, error: "floor inválido (1, 2 o 3)" });
   }
 
   const date = isValidISODateOnly(req.query.date)
@@ -1122,8 +1351,8 @@ app.get("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
 
 app.post("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
   const floor = Number(req.body?.floor);
-  if (![1, 2].includes(floor)) {
-    return res.status(400).json({ ok: false, error: "floor inválido (1 o 2)" });
+  if (![1, 2, 3].includes(floor)) {
+    return res.status(400).json({ ok: false, error: "floor inválido (1, 2 o 3)" });
   }
 
   const date = isValidISODateOnly(req.body?.date)
@@ -1171,9 +1400,11 @@ io.on("connection", async (socket) => {
   try {
     socket.emit("requests:update", await getRequestsPiso1());
     socket.emit("requests2:update", await getRequestsPiso2());
+    socket.emit("requests3:update", await getRequestsPiso3());
   } catch {
     socket.emit("requests:update", []);
     socket.emit("requests2:update", []);
+    socket.emit("requests3:update", []);
   }
 });
 
@@ -1183,6 +1414,7 @@ io.on("connection", async (socket) => {
 const PORT = process.env.PORT || 3000;
 
 (async () => {
+  await ensureProjectTables().catch(() => {});
   await loadOrdersStatus();
 
   await ensureRaffleWinnersTable().catch(() => {});
@@ -1195,6 +1427,8 @@ const PORT = process.env.PORT || 3000;
     console.log(`Piso1 (Clientes): http://localhost:${PORT}/piso1`);
     console.log(`DJ2:    http://localhost:${PORT}/dj2`);
     console.log(`Piso2 (Clientes): http://localhost:${PORT}/piso2`);
+    console.log(`DJ3:    http://localhost:${PORT}/dj3`);
+    console.log(`Piso3 (Clientes): http://localhost:${PORT}/piso3`);
     console.log(`Admin:  http://localhost:${PORT}/admin`);
     console.log("DATABASE_URL cargada:", !!process.env.DATABASE_URL);
     console.log("🟢 ordersOpen inicial (DB):", ordersOpen);
