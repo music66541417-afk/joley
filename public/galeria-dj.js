@@ -217,12 +217,6 @@ function createPendingCard(photo) {
     <div class="gallery-photo-content">
 
       <div class="gallery-photo-name">
-        ${
-          photo.mediaType === "video"
-            ? "🎥 "
-            : "🖼️ "
-        }
-
         ${escapeHtml(photo.name)}
       </div>
 
