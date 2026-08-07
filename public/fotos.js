@@ -1,5 +1,5 @@
 const MAX_FILES = 5;
-const MAX_IMAGE_SIZE = 8 * 1024 * 1024;
+const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 60 * 1024 * 1024;
 
 const input = document.getElementById("photoFiles");

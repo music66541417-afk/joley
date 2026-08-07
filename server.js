@@ -263,7 +263,7 @@ app.use(express.json());
 
 const MEDIA_MAX_FILES = 5;
 const IMAGE_MAX_SIZE = 20 * 1024 * 1024;   // 20 MB
-const VIDEO_MAX_SIZE = 25 * 1024 * 1024; // 60 MB
+const VIDEO_MAX_SIZE = 60 * 1024 * 1024; // 60 MB
 
 const ALLOWED_IMAGE_MIMES = new Set([
   "image/jpeg",
@@ -316,12 +316,12 @@ function validateUploadedMediaFiles(files) {
     const isImage = mime.startsWith("image/");
     const isVideo = mime.startsWith("video/");
 
-    if (isImage && file.size > IMAGE_MAX_SIZE) {
-      return {
-        ok: false,
-        error: `La imagen "${file.originalname}" supera los 8 MB.`,
-      };
-    }
+if (isImage && file.size > IMAGE_MAX_SIZE) {
+  return {
+    ok: false,
+    error: `La imagen "${file.originalname}" supera los 20 MB.`,
+  };
+}
 
     if (isVideo && file.size > VIDEO_MAX_SIZE) {
       return {
