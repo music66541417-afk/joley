@@ -1,4 +1,4 @@
-const MAX_FILES = 5;
+const MAX_FILES = 2;
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 60 * 1024 * 1024;
 
@@ -205,10 +205,10 @@ form.addEventListener("submit", async (event) => {
   if (
     !Number.isInteger(tableNumber) ||
     tableNumber < 1 ||
-    tableNumber > 50
+    tableNumber > 55
   ) {
     showToast(
-      "El número de mesa debe estar entre 1 y 50.",
+      "El número de mesa debe estar entre 1 y 55.",
       "error"
     );
     return;
