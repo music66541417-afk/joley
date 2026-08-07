@@ -262,8 +262,8 @@ app.use(express.json());
 // =======================
 
 const MEDIA_MAX_FILES = 2;
-const IMAGE_MAX_SIZE = 20 * 1024 * 1024;   // 20 MB
-const VIDEO_MAX_SIZE = 60 * 1024 * 1024; // 60 MB
+const IMAGE_MAX_SIZE = 100 * 1024 * 1024;   // 20 MB
+const VIDEO_MAX_SIZE = 300 * 1024 * 1024; // 60 MB
 
 const ALLOWED_IMAGE_MIMES = new Set([
   "image/jpeg",
