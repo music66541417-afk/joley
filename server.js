@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import bcrypt from "bcrypt";
+import multer from "multer";
 
 import pg from "pg";
 const { Pool } = pg;
@@ -26,14 +27,18 @@ pool.on("error", (err) => {
 pool
   .query("SELECT 1 as ok")
   .then(() => console.log("✅ DB conectada"))
-  .catch((e) => console.log("⚠️ DB aún no responde:", e.message));
+  .catch((e) =>
+    console.log("⚠️ DB aún no responde:", e.message)
+  );
 
 // =======================
 // Asegurar tablas/columnas nuevas
 // =======================
 async function ensureProjectTables() {
   try {
-    // requests3
+    // =======================
+    // Requests piso 3
+    // =======================
     await pool.query(`
       CREATE TABLE IF NOT EXISTS requests3 (
         id SERIAL PRIMARY KEY,
@@ -45,7 +50,9 @@ async function ensureProjectTables() {
       );
     `);
 
-    // orders_status base + piso3
+    // =======================
+    // Estado de solicitudes
+    // =======================
     await pool.query(`
       CREATE TABLE IF NOT EXISTS orders_status (
         id INT PRIMARY KEY,
@@ -58,18 +65,120 @@ async function ensureProjectTables() {
 
     await pool.query(`
       ALTER TABLE orders_status
-      ADD COLUMN IF NOT EXISTS piso3 BOOLEAN NOT NULL DEFAULT TRUE
+      ADD COLUMN IF NOT EXISTS piso3
+      BOOLEAN NOT NULL DEFAULT TRUE;
     `);
 
     await pool.query(`
-      INSERT INTO orders_status (id, piso1, piso2, piso3)
-      VALUES (1, TRUE, TRUE, TRUE)
-      ON CONFLICT (id) DO NOTHING
+      INSERT INTO orders_status (
+        id,
+        piso1,
+        piso2,
+        piso3
+      )
+      VALUES (
+        1,
+        TRUE,
+        TRUE,
+        TRUE
+      )
+      ON CONFLICT (id) DO NOTHING;
     `);
 
-    console.log("✅ requests3 / orders_status OK");
+    // =======================
+    // Galería de fotos y videos
+    // =======================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gallery_photos (
+        id SERIAL PRIMARY KEY,
+
+        floor INT NOT NULL
+          CHECK (floor IN (1,2)),
+
+        sender_name TEXT NOT NULL,
+
+        table_no TEXT,
+
+        image_data BYTEA NOT NULL,
+
+        mime_type TEXT NOT NULL,
+
+        media_type TEXT NOT NULL DEFAULT 'image'
+          CHECK (
+            media_type IN (
+              'image',
+              'video'
+            )
+          ),
+
+        original_name TEXT,
+
+        file_size INT NOT NULL DEFAULT 0,
+
+        status TEXT NOT NULL DEFAULT 'pending'
+          CHECK (
+            status IN (
+              'pending',
+              'approved',
+              'rejected',
+              'played'
+            )
+          ),
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+        approved_at TIMESTAMPTZ,
+
+        played_at TIMESTAMPTZ
+      );
+    `);
+
+    // Si la tabla ya existía, agrega media_type
+    await pool.query(`
+      ALTER TABLE gallery_photos
+      ADD COLUMN IF NOT EXISTS media_type
+      TEXT NOT NULL DEFAULT 'image';
+    `);
+
+    // Elimina el constraint anterior si existe
+    await pool.query(`
+      ALTER TABLE gallery_photos
+      DROP CONSTRAINT IF EXISTS
+      gallery_photos_media_type_check;
+    `);
+
+    // Agrega el constraint correcto
+    await pool.query(`
+      ALTER TABLE gallery_photos
+      ADD CONSTRAINT
+      gallery_photos_media_type_check
+      CHECK (
+        media_type IN (
+          'image',
+          'video'
+        )
+      );
+    `);
+
+    // Índice para pendientes y aprobados
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_gallery_photos_floor_status
+      ON gallery_photos (
+        floor,
+        status,
+        created_at ASC
+      );
+    `);
+
+    console.log(
+      "✅ requests3 / orders_status / gallery_photos OK"
+    );
   } catch (e) {
-    console.log("⚠️ No pude asegurar tablas base:", e.message);
+    console.log(
+      "⚠️ No pude asegurar tablas base:",
+      e.message
+    );
   }
 }
 
@@ -147,6 +256,83 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.json());
+
+// =======================
+// Subida de fotos y videos
+// =======================
+
+const MEDIA_MAX_FILES = 5;
+const IMAGE_MAX_SIZE = 8 * 1024 * 1024;   // 8 MB
+const VIDEO_MAX_SIZE = 25 * 1024 * 1024; // 60 MB
+
+const ALLOWED_IMAGE_MIMES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
+
+const ALLOWED_VIDEO_MIMES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+]);
+
+const mediaUpload = multer({
+  storage: multer.memoryStorage(),
+
+  limits: {
+    files: MEDIA_MAX_FILES,
+    fileSize: VIDEO_MAX_SIZE,
+  },
+
+  fileFilter: (req, file, callback) => {
+    const mime = String(file.mimetype || "").toLowerCase();
+
+    const isAllowedImage =
+      ALLOWED_IMAGE_MIMES.has(mime);
+
+    const isAllowedVideo =
+      ALLOWED_VIDEO_MIMES.has(mime);
+
+    if (!isAllowedImage && !isAllowedVideo) {
+      return callback(
+        new Error(
+          "Solo se permiten fotos JPG, PNG, WEBP, GIF o videos MP4, WEBM y MOV."
+        )
+      );
+    }
+
+    callback(null, true);
+  },
+});   // ← ESTA LÍNEA TE FALTA
+
+function validateUploadedMediaFiles(files) {
+  for (const file of files) {
+    const mime = String(
+      file.mimetype || ""
+    ).toLowerCase();
+
+    const isImage = mime.startsWith("image/");
+    const isVideo = mime.startsWith("video/");
+
+    if (isImage && file.size > IMAGE_MAX_SIZE) {
+      return {
+        ok: false,
+        error: `La imagen "${file.originalname}" supera los 8 MB.`,
+      };
+    }
+
+    if (isVideo && file.size > VIDEO_MAX_SIZE) {
+      return {
+        ok: false,
+        error: `El video "${file.originalname}" supera los 60 MB.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
 
 // =======================
 // Sessions (PostgreSQL)
@@ -543,7 +729,7 @@ async function autoResetIfNeeded() {
   const nowMin = getChileMinutesNow();
   const dayKey = getChileDateKey();
 
-  const inResetWindow = nowMin >= resetMin && nowMin < resetMin + 2;
+  const inResetWindow = nowMin >= resetMin;
 
   if (!inResetWindow || lastAutoReset === dayKey) return;
 
@@ -574,35 +760,113 @@ setInterval(() => {
 // Rutas páginas
 // =======================
 app.get("/", (req, res) => {
-  if (req.session?.user?.dj_route) return res.redirect(req.session.user.dj_route);
+  if (req.session?.user?.dj_route) {
+    return res.redirect(req.session.user.dj_route);
+  }
+
   return res.redirect("/login");
 });
 
+// =======================
+// Login
+// =======================
 app.get("/login", (req, res) =>
   res.sendFile(process.cwd() + "/public/login.html")
 );
+
+// =======================
+// Menús principales de los QR
+// =======================
+
+// El QR del piso 1 abre un menú:
+// Karaoke / Galería de fotos
 app.get("/piso1", (req, res) =>
-  res.sendFile(process.cwd() + "/public/index.html")
+  res.sendFile(process.cwd() + "/public/menu-piso1.html")
 );
+
+// El QR del piso 2 abre un menú:
+// Karaoke / Galería de fotos
 app.get("/piso2", (req, res) =>
-  res.sendFile(process.cwd() + "/public/arriba.html")
+  res.sendFile(process.cwd() + "/public/menu-piso2.html")
 );
+
+// Piso 3 sigue igual por ahora
 app.get("/piso3", (req, res) =>
   res.sendFile(process.cwd() + "/public/piso3.html")
 );
 
+// =======================
+// Formularios de karaoke existentes
+// =======================
+
+// Formulario original del piso 1
+app.get("/piso1/karaoke", (req, res) =>
+  res.sendFile(process.cwd() + "/public/index.html")
+);
+
+// Formulario original del piso 2
+app.get("/piso2/karaoke", (req, res) =>
+  res.sendFile(process.cwd() + "/public/arriba.html")
+);
+
+// =======================
+// Página para seleccionar fotografías
+// =======================
+
+app.get("/piso1/fotos", (req, res) =>
+  res.sendFile(process.cwd() + "/public/fotos.html")
+);
+
+app.get("/piso2/fotos", (req, res) =>
+  res.sendFile(process.cwd() + "/public/fotos.html")
+);
+
+// =======================
+// Paneles protegidos
+// =======================
+
 app.get("/dj", requireDjRoute("/dj"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj.html")
 );
+
 app.get("/dj2", requireDjRoute("/dj2"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj2.html")
 );
+
 app.get("/dj3", requireDjRoute("/dj3"), (req, res) =>
   res.sendFile(process.cwd() + "/public/dj3.html")
 );
+
 app.get("/admin", requireDjRoute("/admin"), (req, res) =>
   res.sendFile(process.cwd() + "/public/admin.html")
 );
+
+// =======================
+// Panel de fotografías por DJ
+// =======================
+
+// DJ 1: solo puede abrir su propia galería
+app.get("/dj/fotos", requireDjRoute("/dj"), (req, res) =>
+  res.sendFile(process.cwd() + "/public/galeria-dj.html")
+);
+
+// DJ 2: solo puede abrir su propia galería
+app.get("/dj2/fotos", requireDjRoute("/dj2"), (req, res) =>
+  res.sendFile(process.cwd() + "/public/galeria-dj.html")
+);
+
+// =======================
+// Pantallas públicas de fotografías
+// =======================
+
+app.get("/pantalla-fotos/1", (req, res) =>
+  res.sendFile(process.cwd() + "/public/pantalla-fotos.html")
+);
+
+app.get("/pantalla-fotos/2", (req, res) =>
+  res.sendFile(process.cwd() + "/public/pantalla-fotos.html")
+);
+
 
 // =======================
 // Login / Auth
@@ -633,6 +897,859 @@ app.post("/auth/login", async (req, res) => {
 app.post("/auth/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
+
+// =======================
+// Galería: subida pública
+// =======================
+
+function validatePhotoForm(req) {
+  const name = String(
+    req.body?.name ?? ""
+  ).trim();
+
+  const table = String(
+    req.body?.table ?? ""
+  ).trim();
+
+  // Solo letras, espacios, tildes, ñ y ü
+  const validName =
+    /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]+$/.test(name);
+
+  if (
+    !name ||
+    name.length > 40 ||
+    !validName
+  ) {
+    return {
+      ok: false,
+      error:
+        "El nombre solo puede contener letras y espacios.",
+    };
+  }
+
+  const tableNumber = Number(table);
+
+  if (
+    !Number.isInteger(tableNumber) ||
+    tableNumber < 1 ||
+    tableNumber > 50
+  ) {
+    return {
+      ok: false,
+      error:
+        "El número de mesa debe estar entre 1 y 50.",
+    };
+  }
+
+  return {
+    ok: true,
+    name,
+    table: String(tableNumber),
+  };
+}
+
+async function saveUploadedPhotos({
+  floor,
+  name,
+  table,
+  files,
+}) {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const inserted = [];
+
+    for (const file of files) {
+      const mime = String(
+        file.mimetype || ""
+      ).toLowerCase();
+
+      const mediaType = mime.startsWith("video/")
+        ? "video"
+        : "image";
+
+      const q = await client.query(
+        `
+        INSERT INTO gallery_photos (
+          floor,
+          sender_name,
+          table_no,
+          image_data,
+          mime_type,
+          media_type,
+          original_name,
+          file_size,
+          status
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          'pending'
+        )
+        RETURNING
+          id,
+          floor,
+          sender_name,
+          table_no,
+          mime_type,
+          media_type,
+          original_name,
+          file_size,
+          status,
+          created_at
+        `,
+        [
+          floor,
+          name,
+          table,
+          file.buffer,
+          file.mimetype,
+          mediaType,
+          file.originalname,
+          file.size,
+        ]
+      );
+
+      inserted.push(q.rows[0]);
+    }
+
+    await client.query("COMMIT");
+
+    return inserted;
+
+  } catch (error) {
+
+    await client.query("ROLLBACK");
+    throw error;
+
+  } finally {
+
+    client.release();
+
+  }
+}
+// Piso 1:
+// la ruta determina el DJ automáticamente.
+// El cliente no puede elegir el piso.
+app.post(
+  "/api/photos/piso1",
+  mediaUpload.array("media", MEDIA_MAX_FILES),
+  async (req, res) => {
+    const validation = validatePhotoForm(req);
+
+    if (!validation.ok) {
+      return res.status(400).json(validation);
+    }
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : [];
+
+    if (files.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "Selecciona al menos una foto o video.",
+      });
+    }
+
+    const fileValidation =
+      validateUploadedMediaFiles(files);
+
+    if (!fileValidation.ok) {
+      return res
+        .status(400)
+        .json(fileValidation);
+    }
+
+    try {
+      const media = await saveUploadedPhotos({
+        floor: 1,
+        name: validation.name,
+        table: validation.table,
+        files,
+      });
+
+      io.emit("gallery:update", {
+        floor: 1,
+        action: "uploaded",
+        count: media.length,
+        at: new Date().toISOString(),
+      });
+
+      return res.json({
+        ok: true,
+        count: media.length,
+        message:
+          media.length === 1
+            ? "Archivo enviado correctamente."
+            : `${media.length} archivos enviados correctamente.`,
+      });
+    } catch (error) {
+      console.error(
+        "Error subiendo archivos piso 1:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudieron guardar los archivos.",
+      });
+    }
+  }
+);
+
+// Piso 2:
+// automáticamente se guardan para el DJ 2.
+app.post(
+  "/api/photos/piso2",
+  mediaUpload.array("media", MEDIA_MAX_FILES),
+  async (req, res) => {
+    const validation = validatePhotoForm(req);
+
+    if (!validation.ok) {
+      return res.status(400).json(validation);
+    }
+
+    const files = Array.isArray(req.files)
+      ? req.files
+      : [];
+
+    if (files.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "Selecciona al menos una foto o video.",
+      });
+    }
+
+    const fileValidation =
+      validateUploadedMediaFiles(files);
+
+    if (!fileValidation.ok) {
+      return res
+        .status(400)
+        .json(fileValidation);
+    }
+
+    try {
+      const media = await saveUploadedPhotos({
+        floor: 2,
+        name: validation.name,
+        table: validation.table,
+        files,
+      });
+
+      io.emit("gallery:update", {
+        floor: 2,
+        action: "uploaded",
+        count: media.length,
+        at: new Date().toISOString(),
+      });
+
+      return res.json({
+        ok: true,
+        count: media.length,
+        message:
+          media.length === 1
+            ? "Archivo enviado correctamente."
+            : `${media.length} archivos enviados correctamente.`,
+      });
+    } catch (error) {
+      console.error(
+        "Error subiendo archivos piso 2:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudieron guardar los archivos.",
+      });
+    }
+  }
+);
+
+// =======================
+// Galería: API privada para DJ
+// =======================
+
+function getGalleryFloorFromSession(req) {
+  const route = req.session?.user?.dj_route;
+
+  if (route === "/dj") return 1;
+  if (route === "/dj2") return 2;
+
+  return null;
+}
+
+function requireGalleryDj(req, res, next) {
+  if (!req.session?.user) {
+    return res.status(401).json({
+      ok: false,
+      error: "No has iniciado sesión.",
+    });
+  }
+
+  const floor = getGalleryFloorFromSession(req);
+
+  if (!floor) {
+    return res.status(403).json({
+      ok: false,
+      error: "No tienes acceso a esta galería.",
+    });
+  }
+
+  req.galleryFloor = floor;
+  next();
+}
+
+// Listar fotos y videos pendientes y aprobados del DJ conectado
+app.get(
+  "/api/dj/gallery/photos",
+  requireGalleryDj,
+  async (req, res) => {
+    const floor = req.galleryFloor;
+
+    try {
+      const q = await pool.query(
+        `
+        SELECT
+          id,
+          sender_name,
+          table_no,
+          status,
+          mime_type,
+          media_type,
+          original_name,
+          file_size,
+          created_at,
+          approved_at,
+          played_at
+        FROM gallery_photos
+        WHERE floor = $1
+          AND status IN ('pending', 'approved')
+        ORDER BY
+          CASE
+            WHEN status = 'pending' THEN 1
+            WHEN status = 'approved' THEN 2
+            ELSE 3
+          END,
+          created_at ASC,
+          id ASC
+        `,
+        [floor]
+      );
+
+      const pending = [];
+      const approved = [];
+
+      for (const row of q.rows) {
+        const item = {
+          id: Number(row.id),
+          name: row.sender_name,
+          table: row.table_no,
+          status: row.status,
+
+          mimeType: row.mime_type,
+
+          mediaType:
+            row.media_type === "video"
+              ? "video"
+              : "image",
+
+          originalName: row.original_name,
+          fileSize: Number(row.file_size || 0),
+
+          createdAt: row.created_at,
+          approvedAt: row.approved_at,
+          playedAt: row.played_at,
+
+          mediaUrl:
+            `/api/dj/gallery/photos/${row.id}/media`,
+        };
+
+        if (row.status === "pending") {
+          pending.push(item);
+        }
+
+        if (row.status === "approved") {
+          approved.push(item);
+        }
+      }
+
+      return res.json({
+        ok: true,
+        pending,
+        approved,
+      });
+    } catch (error) {
+      console.error(
+        "Error cargando galería DJ:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error:
+          "No se pudo cargar la galería.",
+      });
+    }
+  }
+);
+
+// Entregar la foto o video solamente al DJ correspondiente
+// Entregar una foto o video al DJ correspondiente
+app.get(
+  "/api/dj/gallery/photos/:id/media",
+  requireGalleryDj,
+  async (req, res) => {
+    const floor = req.galleryFloor;
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).send("ID inválido");
+    }
+
+    try {
+      const q = await pool.query(
+        `
+        SELECT
+          image_data,
+          mime_type,
+          media_type
+        FROM gallery_photos
+        WHERE id = $1
+          AND floor = $2
+        LIMIT 1
+        `,
+        [id, floor]
+      );
+
+      if (!q.rowCount) {
+        return res
+          .status(404)
+          .send("Archivo no encontrado");
+      }
+
+      const media = q.rows[0];
+      const buffer = media.image_data;
+      const fileSize = buffer.length;
+
+      res.setHeader(
+        "Content-Type",
+        media.mime_type ||
+          "application/octet-stream"
+      );
+
+      res.setHeader(
+        "Accept-Ranges",
+        "bytes"
+      );
+
+      res.setHeader(
+        "Cache-Control",
+        "private, max-age=60"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        "inline"
+      );
+
+      const range = req.headers.range;
+
+      if (
+        media.media_type !== "video" ||
+        !range
+      ) {
+        res.setHeader(
+          "Content-Length",
+          fileSize
+        );
+
+        return res.status(200).send(buffer);
+      }
+
+      const parts = range.replace(
+        /bytes=/,
+        ""
+      ).split("-");
+
+      const start = Number(parts[0]);
+
+      const requestedEnd =
+        parts[1]
+          ? Number(parts[1])
+          : fileSize - 1;
+
+      if (
+        !Number.isInteger(start) ||
+        start < 0 ||
+        start >= fileSize
+      ) {
+        res.setHeader(
+          "Content-Range",
+          `bytes */${fileSize}`
+        );
+
+        return res
+          .status(416)
+          .end();
+      }
+
+      const end = Math.min(
+        requestedEnd,
+        fileSize - 1
+      );
+
+      const chunk =
+        buffer.subarray(start, end + 1);
+
+      res.status(206);
+
+      res.setHeader(
+        "Content-Range",
+        `bytes ${start}-${end}/${fileSize}`
+      );
+
+      res.setHeader(
+        "Content-Length",
+        chunk.length
+      );
+
+      return res.send(chunk);
+    } catch (error) {
+      console.error(
+        "Error entregando archivo al DJ:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send("No se pudo cargar el archivo");
+    }
+  }
+);
+
+// Aprobar, rechazar o retirar una fotografía
+app.patch(
+  "/api/dj/gallery/photos/:id/status",
+  requireGalleryDj,
+  async (req, res) => {
+    const floor = req.galleryFloor;
+    const id = Number(req.params.id);
+    const status = String(req.body?.status || "").trim();
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "ID inválido.",
+      });
+    }
+
+    if (
+      !["approved", "rejected", "played"].includes(status)
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: "Estado inválido.",
+      });
+    }
+
+    try {
+      let q;
+
+      if (status === "approved") {
+        q = await pool.query(
+          `
+          UPDATE gallery_photos
+          SET
+            status = 'approved',
+            approved_at = NOW(),
+            played_at = NULL
+          WHERE id = $1
+            AND floor = $2
+          RETURNING id, sender_name, status
+          `,
+          [id, floor]
+        );
+      }
+
+      if (status === "rejected") {
+        q = await pool.query(
+          `
+          UPDATE gallery_photos
+          SET
+            status = 'rejected',
+            approved_at = NULL,
+            played_at = NULL
+          WHERE id = $1
+            AND floor = $2
+          RETURNING id, sender_name, status
+          `,
+          [id, floor]
+        );
+      }
+
+      if (status === "played") {
+        q = await pool.query(
+          `
+          UPDATE gallery_photos
+          SET
+            status = 'played',
+            played_at = NOW()
+          WHERE id = $1
+            AND floor = $2
+            AND status = 'approved'
+          RETURNING id, sender_name, status
+          `,
+          [id, floor]
+        );
+      }
+
+      if (!q?.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          error: "Archivo no encontrado.",
+        });
+      }
+
+      io.emit("gallery:update", {
+        floor,
+        action: status,
+        photoId: id,
+        at: new Date().toISOString(),
+      });
+
+      return res.json({
+        ok: true,
+        photo: q.rows[0],
+      });
+    } catch (error) {
+      console.error(
+        "Error cambiando estado del archivo:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudo actualizar el archivo.",
+      });
+    }
+  }
+);
+
+// =======================
+// Galería: API pública para pantalla
+// =======================
+
+app.get("/api/gallery/screen/:floor/photos", async (req, res) => {
+  const floor = Number(req.params.floor);
+
+  if (![1, 2].includes(floor)) {
+    return res.status(400).json({
+      ok: false,
+      error: "Piso inválido.",
+    });
+  }
+
+  try {
+    const q = await pool.query(
+      `
+      SELECT
+        id,
+        sender_name,
+        media_type,
+        mime_type,
+        created_at,
+        approved_at
+      FROM gallery_photos
+      WHERE floor = $1
+        AND status = 'approved'
+      ORDER BY approved_at ASC, id ASC
+      `,
+      [floor]
+    );
+
+    const media = q.rows.map((row) => ({
+      id: Number(row.id),
+      name: row.sender_name,
+
+      mediaType:
+        row.media_type === "video"
+          ? "video"
+          : "image",
+
+      mimeType: row.mime_type,
+
+      createdAt: row.created_at,
+      approvedAt: row.approved_at,
+
+      mediaUrl:
+        `/api/gallery/screen/${floor}/photos/${row.id}/media`,
+    }));
+
+    return res.json({
+      ok: true,
+      floor,
+      photos: media,
+    });
+  } catch (error) {
+    console.error(
+      "Error cargando pantalla multimedia:",
+      error
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error: "No se pudo cargar la presentación.",
+    });
+  }
+});
+
+// Entregar públicamente una foto o video aprobado
+// Entregar públicamente una foto o video aprobado
+app.get(
+  "/api/gallery/screen/:floor/photos/:id/media",
+  async (req, res) => {
+    const floor = Number(req.params.floor);
+    const id = Number(req.params.id);
+
+    if (![1, 2].includes(floor)) {
+      return res.status(400).send("Piso inválido");
+    }
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).send("ID inválido");
+    }
+
+    try {
+      const q = await pool.query(
+        `
+        SELECT
+          image_data,
+          mime_type,
+          media_type
+        FROM gallery_photos
+        WHERE id = $1
+          AND floor = $2
+          AND status = 'approved'
+        LIMIT 1
+        `,
+        [id, floor]
+      );
+
+      if (!q.rowCount) {
+        return res
+          .status(404)
+          .send("Archivo no disponible");
+      }
+
+      const media = q.rows[0];
+      const buffer = media.image_data;
+      const fileSize = buffer.length;
+
+      const mimeType =
+        media.mime_type ||
+        "application/octet-stream";
+
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader(
+        "Cache-Control",
+        "public, max-age=60"
+      );
+      res.setHeader(
+        "Content-Disposition",
+        "inline"
+      );
+
+      const range = req.headers.range;
+
+      // Las imágenes se pueden entregar completas
+      if (
+        media.media_type !== "video" ||
+        !range
+      ) {
+        res.setHeader(
+          "Content-Length",
+          fileSize
+        );
+
+        return res.status(200).send(buffer);
+      }
+
+      // El navegador solicita una parte del video
+      const parts = range.replace(
+        /bytes=/,
+        ""
+      ).split("-");
+
+      const start = Number(parts[0]);
+
+      const requestedEnd =
+        parts[1]
+          ? Number(parts[1])
+          : fileSize - 1;
+
+      if (
+        !Number.isInteger(start) ||
+        start < 0 ||
+        start >= fileSize
+      ) {
+        res.setHeader(
+          "Content-Range",
+          `bytes */${fileSize}`
+        );
+
+        return res
+          .status(416)
+          .end();
+      }
+
+      const end = Math.min(
+        requestedEnd,
+        fileSize - 1
+      );
+
+      const chunkSize =
+        end - start + 1;
+
+      const chunk =
+        buffer.subarray(start, end + 1);
+
+      res.status(206);
+
+      res.setHeader(
+        "Content-Range",
+        `bytes ${start}-${end}/${fileSize}`
+      );
+
+      res.setHeader(
+        "Content-Length",
+        chunkSize
+      );
+
+      return res.send(chunk);
+    } catch (error) {
+      console.error(
+        "Error mostrando archivo público:",
+        error
+      );
+
+      return res
+        .status(500)
+        .send("No se pudo cargar el archivo");
+    }
+  }
+);
+
 
 // =======================
 // Validación payload
@@ -1389,6 +2506,54 @@ app.post("/api/admin/raffle/winners", requireAdmin, async (req, res) => {
     return res.status(500).json({ ok: false, error: e.message });
   }
 });
+
+
+// =======================
+// Errores de subida
+// =======================
+app.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === "LIMIT_FILE_COUNT") {
+      return res.status(400).json({
+        ok: false,
+        error: "Solo puedes enviar hasta 5 archivos.",
+      });
+    }
+
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        ok: false,
+        error:
+          "Uno de los archivos supera el máximo permitido de 60 MB.",
+      });
+    }
+
+    return res.status(400).json({
+      ok: false,
+      error:
+        "Ocurrió un error procesando los archivos.",
+    });
+  }
+
+  if (
+    error?.message?.startsWith(
+      "Solo se permiten fotos"
+    )
+  ) {
+    return res.status(400).json({
+      ok: false,
+      error: error.message,
+    });
+  }
+
+  console.error("Error no controlado:", error);
+
+  return res.status(500).json({
+    ok: false,
+    error: "Ocurrió un error interno.",
+  });
+});
+
 
 // =======================
 // Socket

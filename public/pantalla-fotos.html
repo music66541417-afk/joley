@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Pantalla de fotos y videos</title>
+
+  <link
+    rel="stylesheet"
+    href="/styles.css"
+  >
+</head>
+
+<body class="photo-screen-page">
+
+  <main class="photo-screen">
+
+    <img
+      id="photoScreenImage"
+      class="photo-screen-image"
+      alt=""
+    >
+
+    <video
+      id="photoScreenVideo"
+      class="photo-screen-video"
+      autoplay
+      playsinline
+      controls
+      preload="auto"
+    ></video>
+
+    <div
+      id="photoScreenCaption"
+      class="photo-screen-caption"
+    ></div>
+
+    <div
+      id="photoScreenEmpty"
+      class="photo-screen-empty"
+    >
+      Esperando fotos o videos aprobados…
+    </div>
+
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/pantalla-fotos.js"></script>
+
+</body>
+</html>

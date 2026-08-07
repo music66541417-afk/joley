@@ -12,6 +12,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "express-session": "^1.19.0",
+    "multer": "^2.2.0",
     "pg": "^8.17.2",
     "socket.io": "^4.8.1"
   }

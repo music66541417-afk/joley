@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Subir fotos y videos</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body class="photo-upload-page">
+
+  <main class="photo-upload-shell">
+
+    <section class="photo-upload-card">
+
+      <button
+        type="button"
+        class="photo-back"
+        id="backBtn"
+      >
+        ← Volver
+      </button>
+
+      <div
+        class="photo-floor"
+        id="floorLabel"
+      >
+        GALERÍA DE FOTOS
+      </div>
+
+      <h1>Sube tus fotos o videos</h1>
+
+      <p class="photo-help">
+        Puedes elegir fotos o videos desde tu teléfono.
+        Máximo 5 archivos.
+      </p>
+
+      <form
+        id="photoForm"
+        class="photo-form"
+        autocomplete="off"
+      >
+
+        <label class="photo-field">
+          <span>Tu nombre</span>
+
+          <input
+            id="photoName"
+            name="name"
+            type="text"
+            maxlength="40"
+            placeholder="Ej: Johnny"
+            required
+          >
+        </label>
+
+        <label class="photo-field">
+          <span>Número de mesa</span>
+
+          <input
+            id="photoTable"
+            name="table"
+            type="text"
+            inputmode="numeric"
+            maxlength="2"
+            placeholder="Ej: 12"
+            required
+          >
+        </label>
+
+        <label
+          for="photoFiles"
+          class="photo-picker"
+        >
+          <strong>Seleccionar fotos o videos</strong>
+
+          <small>
+            <small>
+  Puedes elegir fotos o videos desde tu teléfono
+          </small>
+          </small>
+        </label>
+
+        <input
+            id="photoFiles"
+            name="media"
+            type="file"
+            accept="image/*,video/mp4,video/webm,video/quicktime"
+            multiple
+            hidden
+        >
+
+        <div
+          id="photoCounter"
+          class="photo-counter"
+        >
+          0 de 5 seleccionadas
+        </div>
+
+        <div
+          id="photoPreview"
+          class="photo-preview"
+        ></div>
+
+        <button
+          type="submit"
+          class="btn photo-submit"
+          disabled
+        >
+          Enviar archivos
+        </button>
+
+        <div
+          id="photoToast"
+          class="toast"
+          aria-live="polite"
+        ></div>
+
+      </form>
+
+    </section>
+
+  </main>
+
+  <script src="/fotos.js"></script>
+
+</body>
+</html>

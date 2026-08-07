@@ -47,9 +47,8 @@ a{ color: inherit; }
   padding-right: 28px;
 }
 
-/* ✅ deja espacio abajo para la FRANJA */
 .dj .container{
-  padding-bottom: 64px;
+  padding-bottom: 16px;
 }
 
 .topbar{
@@ -538,6 +537,35 @@ a{ color: inherit; }
   opacity: .85;
 }
 
+.dj-title-status{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-status-dot{
+  width: 10px;
+  height: 10px;
+  margin-right: 0;
+  flex: 0 0 auto;
+}
+
+/* Verde cuando los pedidos están abiertos */
+.header-status-dot.open{
+  background: var(--ok);
+  box-shadow:
+    0 0 7px rgba(78,225,138,.75),
+    0 0 14px rgba(78,225,138,.30);
+}
+
+/* Rojo cuando los pedidos están cerrados */
+.header-status-dot.closed{
+  background: var(--danger);
+  box-shadow:
+    0 0 7px rgba(255,91,91,.75),
+    0 0 14px rgba(255,91,91,.30);
+}
+
 .orders-dot.open{
   background: var(--ok);
   box-shadow: 0 0 8px rgba(78,225,138,.35);
@@ -598,52 +626,7 @@ a{ color: inherit; }
     0 8px 24px rgba(0,0,0,0.45);
 }
 
-/* =========================
-   FRANJA INFERIOR (tipo "Servidor online") – PEDIDOS
-   (usa id="ordersBar" desde el HTML y open/closed desde JS)
-========================= */
-.orders-strip{
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 999;
 
-  height: 40px;
-  display: flex;
-  align-items: center;
-
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(6px);
-
-  border-top: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 -10px 24px rgba(0,0,0,0.55);
-}
-
-.orders-strip-inner{
-  width: 100%;
-  margin: 0;
-  padding: 0 14px;
-
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  justify-content: flex-start;
-}
-
-.orders-strip #ordersLabel{
-  font-weight: 900;
-  letter-spacing: .9px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.85);
-}
-
-.orders-strip.open{
-  border-top-color: rgba(78,225,138,0.22);
-}
-.orders-strip.closed{
-  border-top-color: rgba(255,91,91,0.22);
-}
 
 /* =========================
    ANIMACIÓN SUAVE: entrada + glow
@@ -968,4 +951,1247 @@ body:not(.dj) input:focus{
     0 14px 32px rgba(0,0,0,.55),
     0 0 14px rgba(200,165,122,.10),
     inset 0 0 0 1px rgba(255,255,255,.06) !important;
+}
+
+
+/* ===========================================================
+   MENÚ PRINCIPAL QR - MISMA ESTÉTICA DEL FORMULARIO
+=========================================================== */
+
+.menu-body{
+  min-height:100vh;
+  margin:0;
+  padding:24px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  color:#fff;
+
+  background-image:
+    linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,.76)),
+    url("/img/fondo.jpg");
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  background-attachment:fixed;
+}
+
+.menu-container{
+  width:min(520px, 94vw);
+  padding:34px 30px;
+  text-align:center;
+
+  background:rgba(0,0,0,.62);
+  border:1px solid rgba(200,165,122,.35);
+  border-radius:18px;
+
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+
+  box-shadow:
+    0 22px 60px rgba(0,0,0,.58),
+    inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+.menu-floor{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  margin-bottom:12px;
+  padding:6px 12px;
+
+  border:1px solid rgba(200,165,122,.28);
+  border-radius:999px;
+
+  background:rgba(0,0,0,.32);
+  color:rgba(224,190,128,.95);
+
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.14em;
+}
+
+.menu-container h1{
+  margin:0;
+  color:#fff;
+  font-size:clamp(30px, 7vw, 42px);
+  line-height:1.08;
+  text-shadow:0 4px 18px rgba(0,0,0,.6);
+}
+
+.menu-container p{
+  margin:13px 0 28px;
+  color:rgba(255,255,255,.68);
+  font-size:14px;
+}
+
+.menu-btn{
+  width:100%;
+  min-height:58px;
+  margin-top:14px;
+  padding:16px 18px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+
+  border-radius:14px;
+  text-decoration:none !important;
+
+  font-size:17px;
+  font-weight:900;
+  letter-spacing:.2px;
+
+  box-shadow:0 12px 28px rgba(0,0,0,.35);
+  transition:transform .15s ease, filter .15s ease, box-shadow .15s ease;
+}
+
+.menu-btn:hover{
+  transform:translateY(-2px);
+  filter:brightness(1.07);
+  box-shadow:0 16px 34px rgba(0,0,0,.48);
+}
+
+.menu-btn:active{
+  transform:translateY(0);
+}
+
+.menu-btn.karaoke{
+  color:#17110a;
+  border:1px solid rgba(231,194,112,.7);
+  background:linear-gradient(180deg, #d7aa45, #bc8b2f);
+}
+
+.menu-btn.fotos{
+  color:#fff;
+  border:1px solid rgba(200,165,122,.52);
+  background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.42));
+}
+
+.menu-btn.fotos:hover{
+  border-color:rgba(224,190,128,.82);
+  background:linear-gradient(180deg, rgba(200,165,122,.13), rgba(0,0,0,.46));
+}
+
+@media(max-width:600px){
+  .menu-body{
+    padding:16px;
+    background-attachment:scroll;
+  }
+
+  .menu-container{
+    width:100%;
+    padding:28px 20px;
+    border-radius:16px;
+  }
+
+  .menu-container h1{
+    font-size:31px;
+  }
+
+  .menu-btn{
+    min-height:56px;
+    padding:15px 14px;
+    font-size:16px;
+  }
+}
+
+/* ===========================================================
+   PÁGINA PARA SUBIR FOTOGRAFÍAS
+=========================================================== */
+
+.photo-upload-page{
+  min-height:100vh;
+  margin:0;
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.55),
+      rgba(0,0,0,.70)
+    ),
+    url("/img/fondo.jpg");
+
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
+  color:#fff;
+}
+
+.photo-upload-shell{
+  min-height:100vh;
+
+  display:flex;
+  justify-content:center;
+  align-items:center;
+
+  padding:22px;
+}
+
+.photo-upload-card{
+  width:min(520px,100%);
+
+  background:rgba(10,10,10,.60);   /* más transparente */
+
+  backdrop-filter:blur(8px);
+
+  border:1px solid rgba(197,154,61,.25);
+
+  border-radius:24px;
+
+  padding:30px;
+
+  box-shadow:
+    0 25px 70px rgba(0,0,0,.55);
+}
+
+.photo-back{
+  border:0;
+  background:transparent;
+
+  color:rgba(255,255,255,.72);
+
+  padding:0;
+  margin-bottom:20px;
+
+  font-size:14px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.photo-back:hover{
+  color:#fff;
+}
+
+.photo-floor{
+  color:#c59a3d;
+
+  font-size:12px;
+  font-weight:900;
+
+  letter-spacing:.16em;
+
+  margin-bottom:9px;
+}
+
+.photo-upload-card h1{
+  margin:0;
+
+  font-size:clamp(28px, 7vw, 40px);
+
+  line-height:1.08;
+}
+
+.photo-help{
+  margin:12px 0 24px;
+
+  color:rgba(255,255,255,.65);
+
+  font-size:14px;
+  line-height:1.5;
+}
+
+.photo-form{
+  display:grid;
+  gap:15px;
+}
+
+.photo-field{
+  display:block;
+}
+
+.photo-field span{
+  display:block;
+
+  margin-bottom:7px;
+
+  font-size:13px;
+  font-weight:800;
+
+  color:rgba(255,255,255,.88);
+}
+
+.photo-field input{
+  width:100%;
+
+  padding:13px 14px;
+
+  border-radius:12px;
+
+  border:1px solid rgba(197,154,61,.28);
+
+  background:rgba(255,255,255,.04);
+
+  color:#fff;
+
+  outline:none;
+
+  font-size:15px;
+}
+
+.photo-field input::placeholder{
+  color:rgba(255,255,255,.35);
+}
+
+.photo-field input:focus{
+  border-color:rgba(197,154,61,.75);
+
+  box-shadow:
+    0 0 0 3px rgba(197,154,61,.12);
+}
+
+.photo-picker{
+  display:block;
+
+  padding:22px 18px;
+
+  text-align:center;
+
+  border:1px dashed rgba(197,154,61,.68);
+
+  border-radius:15px;
+
+  background:rgba(255,255,255,.04);
+  backdrop-filter:blur(4px);
+  cursor:pointer;
+
+  transition:
+    background .18s ease,
+    border-color .18s ease,
+    transform .18s ease;
+}
+
+.photo-picker:hover{
+  background:rgba(197,154,61,.13);
+
+  border-color:rgba(197,154,61,.9);
+
+  transform:translateY(-1px);
+}
+
+.photo-picker strong{
+  display:block;
+
+  font-size:16px;
+}
+
+.photo-picker small{
+  display:block;
+
+  margin-top:5px;
+
+  color:rgba(255,255,255,.55);
+
+  font-size:12px;
+}
+
+.photo-counter{
+  color:rgba(255,255,255,.58);
+
+  font-size:12px;
+}
+
+.photo-preview{
+  display:grid;
+
+  grid-template-columns:repeat(3, 1fr);
+
+  gap:10px;
+}
+
+.photo-preview-item{
+  position:relative;
+
+  aspect-ratio:1;
+
+  overflow:hidden;
+
+  border-radius:13px;
+
+  border:1px solid rgba(255,255,255,.08);
+
+  background:#111;
+}
+
+.photo-preview-item img{
+  width:100%;
+  height:100%;
+
+  display:block;
+
+  object-fit:cover;
+}
+
+.photo-preview-item button{
+  position:absolute;
+
+  top:6px;
+  right:6px;
+
+  width:28px;
+  height:28px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  border:0;
+  border-radius:999px;
+
+  background:rgba(0,0,0,.76);
+
+  color:#fff;
+
+  font-size:20px;
+  line-height:1;
+
+  cursor:pointer;
+}
+
+.photo-preview-item button:hover{
+  background:rgba(180,45,45,.9);
+}
+
+.photo-submit{
+  width:100%;
+
+  padding:14px;
+
+  margin-top:4px;
+
+  border-radius:13px;
+
+  border:1px solid rgba(197,154,61,.3);
+
+  background:linear-gradient(
+    90deg,
+    #c59a3d,
+    #8b5e3c
+  );
+
+  color:#111;
+
+  font-size:15px;
+  font-weight:900;
+
+  cursor:pointer;
+}
+
+.photo-submit:hover{
+  filter:brightness(1.08);
+}
+
+.photo-submit:disabled{
+  opacity:.4;
+
+  cursor:not-allowed;
+
+  filter:none;
+}
+
+#photoToast{
+  min-height:18px;
+
+  color:rgba(255,255,255,.72);
+
+  font-size:13px;
+
+  text-align:center;
+}
+
+/* ===========================================================
+   MÓVIL
+=========================================================== */
+
+@media(max-width:600px){
+
+  .photo-upload-shell{
+    align-items:flex-start;
+
+    padding:16px;
+  }
+
+  .photo-upload-card{
+    width:100%;
+
+    margin-top:12px;
+
+    padding:22px 18px;
+
+    border-radius:18px;
+  }
+
+  .photo-upload-card h1{
+    font-size:30px;
+  }
+
+  .photo-preview{
+    grid-template-columns:repeat(2, 1fr);
+  }
+
+  .photo-picker{
+    padding:20px 14px;
+  }
+
+}
+
+#photoToast.success{
+  color:#65e69b;
+}
+
+#photoToast.error{
+  color:#ff7b7b;
+}
+
+
+/* ===========================================================
+   PANEL DJ - GALERÍA DE FOTOS
+=========================================================== */
+
+.gallery-dj-page{
+  min-height:100vh;
+  margin:0;
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.76),
+      rgba(0,0,0,.88)
+    ),
+    url("/img/fondo.jpg");
+
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+
+  color:#fff;
+}
+
+.gallery-dj-shell{
+  width:min(1500px, 100%);
+  margin:0 auto;
+  padding:20px;
+}
+
+.gallery-dj-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+
+  padding:20px;
+
+  border-radius:18px;
+
+  background:rgba(8,8,8,.94);
+
+  border:1px solid rgba(197,154,61,.24);
+
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.5);
+}
+
+.gallery-dj-kicker{
+  color:#c59a3d;
+
+  font-size:12px;
+  font-weight:900;
+
+  letter-spacing:.16em;
+}
+
+.gallery-dj-header h1{
+  margin:6px 0 4px;
+
+  font-size:30px;
+}
+
+.gallery-dj-header p{
+  margin:0;
+
+  color:rgba(255,255,255,.58);
+
+  font-size:13px;
+}
+
+.gallery-dj-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.gallery-dj-actions a{
+  text-decoration:none;
+}
+
+.gallery-dj-section{
+  margin-top:18px;
+  padding:20px;
+
+  border-radius:18px;
+
+  background:rgba(8,8,8,.93);
+
+  border:1px solid rgba(197,154,61,.18);
+
+  box-shadow:
+    0 18px 50px rgba(0,0,0,.42);
+}
+
+.gallery-section-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:15px;
+  flex-wrap:wrap;
+}
+
+.gallery-section-title{
+  position:relative;
+
+  padding-left:13px;
+
+  color:rgba(218,182,112,.94);
+
+  font-size:16px;
+  font-weight:900;
+
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.gallery-section-title::before{
+  content:"";
+
+  position:absolute;
+
+  left:0;
+  top:50%;
+
+  width:4px;
+  height:80%;
+
+  transform:translateY(-50%);
+
+  border-radius:999px;
+
+  background:linear-gradient(
+    180deg,
+    #e6bd63,
+    #936129
+  );
+}
+
+.gallery-timer-control{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.gallery-timer-control label{
+  color:rgba(255,255,255,.62);
+
+  font-size:12px;
+  font-weight:800;
+}
+
+.gallery-timer-control select{
+  padding:9px 12px;
+
+  border-radius:10px;
+
+  border:1px solid rgba(197,154,61,.3);
+
+  background:#111;
+
+  color:#fff;
+
+  outline:none;
+}
+
+.gallery-photo-grid{
+  display:grid;
+
+  grid-template-columns:
+    repeat(4, minmax(220px, 1fr));
+
+  gap:16px;
+
+  margin-top:16px;
+}
+
+.gallery-photo-card{
+  position:relative;
+
+  overflow:hidden;
+
+  border-radius:16px;
+
+  background:rgba(16,16,16,.98);
+
+  border:1px solid rgba(255,255,255,.08);
+
+  box-shadow:
+    0 14px 35px rgba(0,0,0,.42);
+
+  transition:
+    transform .18s ease,
+    border-color .18s ease;
+}
+
+.gallery-photo-card:hover{
+  transform:translateY(-2px);
+
+  border-color:
+    rgba(197,154,61,.42);
+}
+
+.gallery-photo-image{
+  width:100%;
+  aspect-ratio:4 / 3;
+
+  background:#050505;
+
+  overflow:hidden;
+}
+
+.gallery-photo-image img{
+  width:100%;
+  height:100%;
+
+  display:block;
+
+  object-fit:cover;
+}
+
+.gallery-photo-content{
+  padding:14px;
+}
+
+.gallery-photo-name{
+  font-size:18px;
+  font-weight:900;
+
+  color:#fff;
+}
+
+.gallery-photo-date{
+  margin-top:5px;
+
+  color:rgba(255,255,255,.5);
+
+  font-size:12px;
+}
+
+.gallery-photo-buttons{
+  display:flex;
+  gap:9px;
+
+  margin-top:14px;
+}
+
+.gallery-photo-buttons button{
+  flex:1;
+
+  min-height:40px;
+
+  border-radius:10px;
+
+  font-weight:900;
+
+  cursor:pointer;
+
+  transition:
+    filter .15s ease,
+    transform .15s ease;
+}
+
+.gallery-photo-buttons button:hover{
+  filter:brightness(1.08);
+
+  transform:translateY(-1px);
+}
+
+.gallery-photo-buttons button:disabled{
+  opacity:.5;
+
+  cursor:not-allowed;
+
+  transform:none;
+}
+
+.gallery-approve-btn{
+  border:1px solid rgba(72,196,122,.55);
+
+  background:rgba(72,196,122,.18);
+
+  color:#77e6a5;
+}
+
+.gallery-reject-btn{
+  border:1px solid rgba(255,91,91,.5);
+
+  background:rgba(255,91,91,.15);
+
+  color:#ff8a8a;
+}
+
+.gallery-played-btn{
+  border:1px solid rgba(197,154,61,.55);
+
+  background:rgba(197,154,61,.16);
+
+  color:#e8c477;
+}
+
+.gallery-approved-card{
+  border-color:rgba(197,154,61,.28);
+}
+
+.gallery-queue-number{
+  position:absolute;
+
+  top:10px;
+  left:10px;
+
+  z-index:2;
+
+  min-width:34px;
+  height:34px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  padding:0 9px;
+
+  border-radius:999px;
+
+  background:rgba(0,0,0,.72);
+
+  border:1px solid rgba(197,154,61,.45);
+
+  color:#e7c57c;
+
+  font-size:12px;
+  font-weight:900;
+}
+
+.gallery-empty{
+  margin-top:16px;
+
+  padding:20px;
+
+  border-radius:13px;
+
+  background:rgba(255,255,255,.025);
+
+  border:1px dashed rgba(255,255,255,.09);
+
+  color:rgba(255,255,255,.45);
+
+  text-align:center;
+
+  font-size:13px;
+}
+
+.gallery-toast{
+  position:fixed;
+
+  left:50%;
+  bottom:22px;
+
+  transform:translateX(-50%);
+
+  z-index:1000;
+
+  min-width:260px;
+  max-width:90vw;
+
+  padding:12px 16px;
+
+  border-radius:12px;
+
+  background:rgba(0,0,0,.86);
+
+  border:1px solid rgba(255,255,255,.1);
+
+  box-shadow:
+    0 12px 35px rgba(0,0,0,.5);
+
+  text-align:center;
+
+  color:#fff;
+
+  font-size:13px;
+
+  pointer-events:none;
+}
+
+.gallery-toast:empty{
+  display:none;
+}
+
+.gallery-toast.success{
+  color:#76e8a5;
+
+  border-color:rgba(72,196,122,.35);
+}
+
+.gallery-toast.error{
+  color:#ff8585;
+
+  border-color:rgba(255,91,91,.35);
+}
+
+/* ===========================================================
+   RESPONSIVE
+=========================================================== */
+
+@media(max-width:1200px){
+  .gallery-photo-grid{
+    grid-template-columns:
+      repeat(3, minmax(220px, 1fr));
+  }
+}
+
+@media(max-width:900px){
+  .gallery-dj-header{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .gallery-dj-actions{
+    width:100%;
+    justify-content:flex-start;
+  }
+
+  .gallery-photo-grid{
+    grid-template-columns:
+      repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media(max-width:600px){
+  .gallery-dj-shell{
+    padding:12px;
+  }
+
+  .gallery-dj-header,
+  .gallery-dj-section{
+    padding:16px;
+    border-radius:15px;
+  }
+
+  .gallery-dj-header h1{
+    font-size:25px;
+  }
+
+  .gallery-dj-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+
+  .gallery-dj-actions .badge{
+    grid-column:1 / -1;
+  }
+
+  .gallery-dj-actions .btn{
+    width:100%;
+    text-align:center;
+  }
+
+  .gallery-photo-grid{
+    grid-template-columns:1fr;
+  }
+
+  .gallery-section-head{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+
+  .gallery-timer-control{
+    width:100%;
+    justify-content:space-between;
+  }
+
+  .gallery-timer-control select{
+    flex:1;
+  }
+}
+
+
+/* Quitar subrayado al botón Galería de fotos */
+.top-actions a.btn,
+.top-actions a.btn:visited,
+.top-actions a.btn:hover,
+.top-actions a.btn:active {
+  text-decoration: none !important;
+}
+
+
+/* ==========================================
+   Botón Volver (reemplaza Anti-spam)
+========================================== */
+
+.back-link{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+
+    color:rgba(255,255,255,.65);
+
+    text-decoration:none;
+
+    font-size:13px;
+    font-weight:700;
+
+    padding:8px 12px;
+
+    border-radius:999px;
+
+    transition:.2s ease;
+}
+
+.back-link:hover{
+    color:#c8a57a;
+    background:rgba(255,255,255,.03);
+}
+
+.back-link:active{
+    transform:translateY(1px);
+}
+
+
+/* ===========================================================
+   PANTALLA DE FOTOS — IMAGEN CENTRADA Y TEXTO FIJO
+=========================================================== */
+
+.photo-screen-page{
+  width:100vw;
+  height:100vh;
+  margin:0;
+  overflow:hidden;
+
+  background-image:
+    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.60)),
+    url("/img/fondo.jpg");
+
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+}
+
+.photo-screen{
+  position:relative;
+
+  width:100vw;
+  height:100vh;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  overflow:hidden;
+}
+
+/* La fotografía siempre queda centrada */
+.photo-screen-image{
+  position:absolute;
+  inset:0;
+
+  width:100%;
+  height:100%;
+
+  object-fit:contain;
+  object-position:center;
+
+  padding:20px;
+  margin:0;
+}
+
+/* Texto siempre en el mismo lugar */
+.photo-screen-caption {
+  position: absolute;
+
+  top: 20px;
+  left: 20px;
+
+  bottom: auto;
+  right: auto;
+
+  z-index: 10;
+
+  max-width: 420px;
+
+  padding: 8px 14px;
+
+  color: rgba(255,255,255,.85);
+  font-size: 15px;
+  font-weight: 500;
+
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(4px);
+
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+
+  pointer-events: none;
+}
+/* Mensaje cuando no hay fotografías */
+.photo-screen-empty{
+  position:absolute;
+  inset:0;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  color:rgba(255,255,255,.65);
+  font-size:22px;
+  font-weight:700;
+}
+
+/* =========================================
+   VIDEOS EN FORMULARIO, PANEL DJ Y PANTALLA
+   ========================================= */
+
+/* Preview de fotos y videos al subir */
+.photo-preview-item img,
+.photo-preview-item video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Fotos y videos dentro de las tarjetas del DJ */
+.gallery-photo-image img,
+.gallery-photo-image video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  background: #000;
+}
+
+/* Evita que los controles del video se salgan */
+.gallery-photo-image video {
+  max-width: 100%;
+}
+
+/* Imagen y video de la pantalla pública */
+.photo-screen-image,
+.photo-screen-video {
+  position: absolute;
+  inset: 0;
+
+  display: none;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+  object-position: center;
+
+  background: #000;
+}
+
+/* El video debe ocupar toda la pantalla */
+.photo-screen-video {
+  z-index: 1;
+}
+
+/* La foto usa la misma capa */
+.photo-screen-image {
+  z-index: 1;
+}
+
+/* Texto "Enviado por..." encima del archivo */
+.photo-screen-caption {
+  position: absolute;
+
+  top: 20px;
+  left: 20px;
+
+  z-index: 10;
+
+  display: none;
+
+  width: fit-content;
+  max-width: 320px;
+
+  padding: 8px 14px;
+
+  color: rgba(255,255,255,.85);
+  font-size: 15px;
+  font-weight: 500;
+
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(4px);
+
+  border-radius: 10px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  pointer-events: none;
+}
+
+/* Pantalla vacía por encima del fondo */
+.photo-screen-empty {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+
+/* ==============================
+   CARGA DE VIDEOS EN PANTALLA
+============================== */
+
+.photo-screen-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  background: rgba(0, 0, 0, 0.82);
+
+  color: rgba(255, 255, 255, 0.82);
+
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.photo-screen-spinner {
+  width: 42px;
+  height: 42px;
+
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: rgba(200, 165, 122, 0.95);
+
+  border-radius: 50%;
+
+  animation: photoScreenSpin 0.8s linear infinite;
+}
+
+@keyframes photoScreenSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }

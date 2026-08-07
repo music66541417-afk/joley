@@ -8,9 +8,9 @@ const countBadge = document.getElementById("countBadge");
 const refreshBtn = document.getElementById("refreshBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 
-const ordersBar = document.getElementById("ordersBar"); // franja inferior
+
 const ordersDot = document.getElementById("ordersDot");
-const ordersLabel = document.getElementById("ordersLabel");
+
 
 const logoutBtn = document.getElementById("logoutBtn");
 
@@ -56,23 +56,42 @@ logoutBtn?.addEventListener("click", async () => {
   location.href = "/login";
 });
 
-// ✅ estado pedidos (piso1) -> FRANJA inferior verde/roja
+// Estado de pedidos DJ 1
+function applyOrdersStatus(isOpen) {
+  if (!ordersDot) return;
+
+  ordersDot.classList.remove("open", "closed");
+  ordersDot.classList.add(isOpen ? "open" : "closed");
+
+  ordersDot.title = isOpen
+    ? "Pedidos abiertos"
+    : "Pedidos cerrados";
+
+  ordersDot.setAttribute(
+    "aria-label",
+    isOpen ? "Pedidos abiertos" : "Pedidos cerrados"
+  );
+}
+
 socket.on("orders:status", (st) => {
-  const isOpen = !!st?.piso1;
-
-  if (ordersDot) {
-    ordersDot.classList.remove("open", "closed");
-    ordersDot.classList.add(isOpen ? "open" : "closed");
-  }
-
-  if (ordersBar) {
-    ordersBar.classList.remove("open", "closed");
-    ordersBar.classList.add(isOpen ? "open" : "closed");
-    ordersBar.title = isOpen ? "Pedidos abiertos" : "Pedidos cerrados";
-  }
-
-  if (ordersLabel) ordersLabel.textContent = "PEDIDOS";
+  applyOrdersStatus(!!st?.piso1);
 });
+
+// Cargar el estado apenas se abre el panel
+async function loadOrdersStatus() {
+  try {
+    const response = await fetch("/api/orders-status");
+    const data = await response.json();
+
+    if (response.ok && data?.ok) {
+      applyOrdersStatus(!!data.ordersOpen?.piso1);
+    }
+  } catch (error) {
+    console.error("No se pudo cargar el estado de pedidos:", error);
+  }
+}
+
+loadOrdersStatus();
 
 function groupByTable(requests) {
   const map = new Map();

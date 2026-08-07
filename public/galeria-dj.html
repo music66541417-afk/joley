@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Galería</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body class="gallery-dj-page">
+
+  <main class="gallery-dj-shell">
+
+    <header class="gallery-dj-header">
+
+      <div>
+        <div class="gallery-dj-kicker">
+          PANEL DJ
+        </div>
+
+        <h1>Galería</h1>
+
+        <p>
+          Revisa los archivos y administra la cola de pantalla.
+        </p>
+      </div>
+
+      <div class="gallery-dj-actions">
+
+        <span
+          class="badge"
+          id="galleryPendingBadge"
+        >
+          0 pendientes
+        </span>
+
+        <button
+          type="button"
+          class="btn btn-small"
+          id="galleryRefreshBtn"
+        >
+          Actualizar
+        </button>
+
+        <a
+          class="btn btn-small"
+          id="openPhotoScreenBtn"
+          href="#"
+          target="_blank"
+          rel="noopener"
+        >
+          Abrir pantalla
+        </a>
+
+        <button
+          type="button"
+          class="btn btn-small"
+          id="galleryBackBtn"
+        >
+          Volver al DJ
+        </button>
+
+      </div>
+
+    </header>
+
+    <section class="gallery-dj-section">
+
+      <div class="gallery-section-title">
+        Pendientes
+      </div>
+
+      <div
+        id="pendingPhotos"
+        class="gallery-photo-grid"
+      ></div>
+
+      <div
+        id="pendingEmpty"
+        class="gallery-empty"
+      >
+        No hay archivos pendientes.
+      </div>
+
+    </section>
+
+    <section class="gallery-dj-section">
+
+      <div class="gallery-section-head">
+
+        <div class="gallery-section-title">
+          Cola aprobada
+        </div>
+
+        <div class="gallery-timer-control">
+
+          <label for="photoSeconds">
+            Cambio automático
+          </label>
+
+          <select id="photoSeconds">
+            <option value="5">5 segundos</option>
+            <option value="8">8 segundos</option>
+            <option value="10">10 segundos</option>
+            <option value="15">15 segundos</option>
+            <option value="20">20 segundos</option>
+          </select>
+
+        </div>
+
+      </div>
+
+      <div
+        id="approvedPhotos"
+        class="gallery-photo-grid"
+      ></div>
+
+      <div
+        id="approvedEmpty"
+        class="gallery-empty"
+      >
+        No hay archivos aprobadas.
+      </div>
+
+    </section>
+
+    <div
+      id="galleryToast"
+      class="gallery-toast"
+      aria-live="polite"
+    ></div>
+
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/galeria-dj.js"></script>
+
+</body>
+</html>

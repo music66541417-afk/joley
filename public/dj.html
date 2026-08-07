@@ -21,7 +21,15 @@
     ======================== -->
     <div class="topbar">
       <div>
-        <div class="title">🎧 Panel DJ</div>
+        <div class="title dj-title-status">
+        <span
+          class="orders-dot open header-status-dot"
+          id="ordersDot"
+          title="Pedidos abiertos"
+        ></span>
+
+  🎧 Panel DJ 
+</div>
         <div class="muted"></div>
       </div>
 
@@ -35,6 +43,15 @@
         <button class="btn btn-small btn-danger" id="clearAllBtn" type="button">
           Limpiar
         </button>
+
+        <a
+          class="btn btn-small"
+          href="/dj/fotos"
+          target="_blank"
+          rel="noopener"
+        >
+          Galería de fotos
+        </a>
 
         <button class="btn btn-small" id="logoutBtn" type="button">
           Salir
@@ -67,15 +84,6 @@
     </div>
   </div>
 
-  <!-- =======================
-       FRANJA INFERIOR PEDIDOS
-  ======================== -->
-  <div class="orders-strip open" id="ordersBar" aria-live="polite">
-    <div class="orders-strip-inner">
-      <span class="orders-dot open" id="ordersDot"></span>
-      <span id="ordersLabel">PEDIDOS</span>
-    </div>
-  </div>
 
   <!-- =======================
        SCRIPTS
