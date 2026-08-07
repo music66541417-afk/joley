@@ -1500,14 +1500,14 @@ app.patch(
       if (status === "played") {
         q = await pool.query(
           `
-          UPDATE gallery_photos
-          SET
-            status = 'played',
-            played_at = NOW()
+          DELETE FROM gallery_photos
           WHERE id = $1
             AND floor = $2
             AND status = 'approved'
-          RETURNING id, sender_name, status
+          RETURNING
+            id,
+            sender_name,
+            'played'::text AS status
           `,
           [id, floor]
         );
