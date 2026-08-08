@@ -115,6 +115,8 @@ async function ensureProjectTables() {
 
         file_size INT NOT NULL DEFAULT 0,
 
+        rotation INT NOT NULL DEFAULT 0,
+
         status TEXT NOT NULL DEFAULT 'pending'
           CHECK (
             status IN (
@@ -138,6 +140,14 @@ async function ensureProjectTables() {
       ALTER TABLE gallery_photos
       ADD COLUMN IF NOT EXISTS media_type
       TEXT NOT NULL DEFAULT 'image';
+    `);
+
+    // Orientación guardada de cada fotografía.
+    // Los videos permanecen siempre en 0 grados.
+    await pool.query(`
+      ALTER TABLE gallery_photos
+      ADD COLUMN IF NOT EXISTS rotation
+      INT NOT NULL DEFAULT 0;
     `);
 
     // Elimina el constraint anterior si existe
@@ -1228,6 +1238,7 @@ app.get(
           media_type,
           original_name,
           file_size,
+          rotation,
           created_at,
           approved_at,
           played_at
@@ -1265,6 +1276,7 @@ app.get(
 
           originalName: row.original_name,
           fileSize: Number(row.file_size || 0),
+          rotation: Number(row.rotation || 0),
 
           createdAt: row.created_at,
           approvedAt: row.approved_at,
@@ -1545,6 +1557,81 @@ app.patch(
   }
 );
 
+// Girar una fotografía y guardar su orientación.
+// Solo el DJ del piso correspondiente puede modificarla.
+app.patch(
+  "/api/dj/gallery/photos/:id/rotation",
+  requireGalleryDj,
+  async (req, res) => {
+    const floor = req.galleryFloor;
+    const id = Number(req.params.id);
+    const rotation = Number(req.body?.rotation);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "ID inválido.",
+      });
+    }
+
+    if (![0, 90, 180, 270].includes(rotation)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Giro inválido.",
+      });
+    }
+
+    try {
+      const q = await pool.query(
+        `
+        UPDATE gallery_photos
+        SET rotation = $1
+        WHERE id = $2
+          AND floor = $3
+          AND media_type = 'image'
+          AND status IN ('pending', 'approved')
+        RETURNING id, floor, rotation
+        `,
+        [rotation, id, floor]
+      );
+
+      if (!q.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          error: "Fotografía no encontrada.",
+        });
+      }
+
+      io.emit("gallery:update", {
+        floor,
+        action: "rotation",
+        photoId: id,
+        rotation,
+        at: new Date().toISOString(),
+      });
+
+      return res.json({
+        ok: true,
+        photo: {
+          id: Number(q.rows[0].id),
+          floor: Number(q.rows[0].floor),
+          rotation: Number(q.rows[0].rotation),
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Error girando fotografía:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudo guardar el giro.",
+      });
+    }
+  }
+);
+
 // =======================
 // Galería: API pública para pantalla
 // =======================
@@ -1567,6 +1654,7 @@ app.get("/api/gallery/screen/:floor/photos", async (req, res) => {
         sender_name,
         media_type,
         mime_type,
+        rotation,
         created_at,
         approved_at
       FROM gallery_photos
@@ -1587,6 +1675,7 @@ app.get("/api/gallery/screen/:floor/photos", async (req, res) => {
           : "image",
 
       mimeType: row.mime_type,
+      rotation: Number(row.rotation || 0),
 
       createdAt: row.created_at,
       approvedAt: row.approved_at,

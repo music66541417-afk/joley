@@ -133,8 +133,74 @@ function createMediaPreview(photo, altText) {
   image.src = photo.mediaUrl;
   image.alt = altText;
   image.loading = "lazy";
+  image.style.transform =
+    `rotate(${Number(photo.rotation) || 0}deg)`;
+  image.style.transition =
+    "transform 0.25s ease";
 
   return image;
+}
+
+async function rotatePhoto(photo, direction, card) {
+  const currentRotation =
+    Number(photo.rotation) || 0;
+
+  const newRotation =
+    direction === "left"
+      ? (currentRotation + 270) % 360
+      : (currentRotation + 90) % 360;
+
+  const buttons =
+    card.querySelectorAll("[data-rotate]");
+
+  buttons.forEach((button) => {
+    button.disabled = true;
+  });
+
+  try {
+    const response = await fetch(
+      `/api/dj/gallery/photos/${photo.id}/rotation`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rotation: newRotation,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(
+        data.error || "No se pudo guardar el giro."
+      );
+    }
+
+    photo.rotation = newRotation;
+
+    const image = card.querySelector(
+      ".gallery-photo-image img"
+    );
+
+    if (image) {
+      image.style.transform =
+        `rotate(${newRotation}deg)`;
+    }
+
+    showToast("Orientación guardada.", "success");
+  } catch (error) {
+    showToast(
+      error.message || "No se pudo girar la fotografía.",
+      "error"
+    );
+  } finally {
+    buttons.forEach((button) => {
+      button.disabled = false;
+    });
+  }
 }
 
 async function changePhotoStatus(
@@ -211,6 +277,33 @@ function createPendingCard(photo) {
   card.className =
     "gallery-photo-card";
 
+  const rotationControls =
+    photo.mediaType === "video"
+      ? ""
+      : `
+        <div class="gallery-rotation-row">
+          <button
+            type="button"
+            class="gallery-rotate-btn"
+            data-rotate="left"
+            title="Girar a la izquierda"
+            aria-label="Girar a la izquierda"
+          >
+            ↶
+          </button>
+
+          <button
+            type="button"
+            class="gallery-rotate-btn"
+            data-rotate="right"
+            title="Girar a la derecha"
+            aria-label="Girar a la derecha"
+          >
+            ↷
+          </button>
+        </div>
+      `;
+
   card.innerHTML = `
     <div class="gallery-photo-image"></div>
 
@@ -227,7 +320,6 @@ function createPendingCard(photo) {
       </div>
 
       <div class="gallery-photo-buttons">
-
         <button
           type="button"
           class="gallery-approve-btn"
@@ -245,6 +337,8 @@ function createPendingCard(photo) {
         </button>
 
       </div>
+
+      ${rotationControls}
 
     </div>
   `;
@@ -299,6 +393,24 @@ function createPendingCard(photo) {
     }
   );
 
+  if (photo.mediaType !== "video") {
+    const rotateLeftButton =
+      card.querySelector('[data-rotate="left"]');
+
+    const rotateRightButton =
+      card.querySelector('[data-rotate="right"]');
+
+    rotateLeftButton.addEventListener(
+      "click",
+      () => rotatePhoto(photo, "left", card)
+    );
+
+    rotateRightButton.addEventListener(
+      "click",
+      () => rotatePhoto(photo, "right", card)
+    );
+  }
+
   return card;
 }
 
@@ -322,12 +434,6 @@ function createApprovedCard(
     <div class="gallery-photo-content">
 
       <div class="gallery-photo-name">
-        ${
-          photo.mediaType === "video"
-            ? "🎥 "
-            : "🖼️ "
-        }
-
         ${escapeHtml(photo.name)}
       </div>
 

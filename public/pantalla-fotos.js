@@ -116,7 +116,35 @@ function hideImage() {
   image.onerror = null;
 
   image.removeAttribute("src");
+  image.style.transform = "";
+  image.style.width = "";
+  image.style.height = "";
+  image.style.inset = "";
+  image.style.left = "";
+  image.style.top = "";
   image.style.display = "none";
+}
+
+function applyImageRotation(item) {
+  const rotation =
+    [0, 90, 180, 270].includes(Number(item?.rotation))
+      ? Number(item.rotation)
+      : 0;
+
+  const isSideways =
+    rotation === 90 || rotation === 270;
+
+  image.style.inset = "auto";
+  image.style.left = "50%";
+  image.style.top = "50%";
+  image.style.width = isSideways
+    ? "100vh"
+    : "100vw";
+  image.style.height = isSideways
+    ? "100vw"
+    : "100vh";
+  image.style.transform =
+    `translate(-50%, -50%) rotate(${rotation}deg)`;
 }
 
 function stopVideo() {
@@ -229,6 +257,8 @@ function showImage(item, token) {
     `Foto enviada por ${
       item.name || "cliente"
     }`;
+
+  applyImageRotation(item);
 
   image.src =
     `${item.mediaUrl}?v=${Date.now()}`;
@@ -593,7 +623,8 @@ socket.on(
       Number(payload?.floor) === floor
     ) {
       loadMedia({
-        forceRender: false,
+        forceRender:
+          payload?.action === "rotation",
       });
     }
   }
