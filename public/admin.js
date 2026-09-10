@@ -1390,8 +1390,8 @@ function renderSuggestions(rows) {
       const reviewed = item.status === "reviewed";
       const floor = Number(item.floor);
 
-      const contact = String(item.contact || "").trim();
-      const wantsContact = !!item.wants_contact;
+      const rut = String(item.rut || "").trim();
+      const email = String(item.email || "").trim();
 
       const category = item.category || "Otro";
       const categoryClass = suggestionCategoryClass(category);
@@ -1440,23 +1440,21 @@ function renderSuggestions(rows) {
             ${esc(item.message || "")}
           </div>
 
-          ${
-            wantsContact
-              ? `
-                <div class="admin-suggestion-contact">
+          <div class="admin-suggestion-contact">
 
-                  <div class="admin-suggestion-contact-title">
-                    Solicita contacto
-                  </div>
+            <div class="admin-suggestion-contact-title">
+              Datos del cliente
+            </div>
 
-                  <div class="admin-suggestion-contact-value">
-                    ${esc(contact || "Sin dato ingresado")}
-                  </div>
+            <div class="admin-suggestion-contact-value">
+              <strong>RUT:</strong> ${esc(rut || "—")}
+            </div>
 
-                </div>
-              `
-              : ""
-          }
+            <div class="admin-suggestion-contact-value">
+              <strong>Correo:</strong> ${esc(email || "—")}
+            </div>
+
+          </div>
 
           <div class="admin-suggestion-card-footer">
 

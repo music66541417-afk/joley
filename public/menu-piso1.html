@@ -10,6 +10,10 @@
 
   <title>Jolly Roger · Piso 1</title>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/styles.css">
 </head>
 
@@ -23,29 +27,38 @@
 
     <h1>¿Qué deseas hacer?</h1>
 
-    <p>
-      Selecciona una opción para continuar.
+    <p class="menu-subtitle">
+      Elige una opción para continuar.
     </p>
 
-    <a
-      class="menu-btn karaoke"
-      href="/piso1/karaoke"
-    >
-      🎤 Solicitud de karaoke
-    </a>
+    <div class="menu-actions">
 
-    <a
-      class="menu-btn fotos"
-      href="/piso1/fotos"
-    >
-      📸 Sube tus fotos
-    </a>
+      <a
+        class="menu-btn karaoke"
+        href="/piso1/karaoke"
+      >
+        <span class="menu-btn-icon" aria-hidden="true">♬</span>
+        <span class="menu-btn-text">Solicitud de karaoke</span>
+        <span class="menu-btn-arrow" aria-hidden="true">›</span>
+      </a>
+
+      <a
+        class="menu-btn fotos"
+        href="/piso1/fotos"
+      >
+        <span class="menu-btn-icon" aria-hidden="true">▣</span>
+        <span class="menu-btn-text">Sube tus fotos</span>
+        <span class="menu-btn-arrow" aria-hidden="true">›</span>
+      </a>
+
+    </div>
 
     <a
       class="menu-suggestion-link"
       href="/piso1/sugerencias"
     >
-      💬 Opiniones y sugerencias
+      <span class="menu-suggestion-icon" aria-hidden="true">◌</span>
+      <span>Opiniones y sugerencias</span>
     </a>
 
   </main>

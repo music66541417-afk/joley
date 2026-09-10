@@ -6,15 +6,14 @@ const backBtn = document.getElementById("suggestionBackBtn");
 const returnBtn = document.getElementById("suggestionReturnBtn");
 
 const nameInput = document.getElementById("suggestionName");
+const rutInput = document.getElementById("suggestionRut");
+const emailInput = document.getElementById("suggestionEmail");
 const categoryInput = document.getElementById("suggestionCategory");
 const categoryButtons = document.querySelectorAll(".suggestion-category");
 
 const messageInput = document.getElementById("suggestionMessage");
 const charCount = document.getElementById("suggestionCharCount");
 
-const wantsContact = document.getElementById("suggestionWantsContact");
-const contactField = document.getElementById("suggestionContactField");
-const contactInput = document.getElementById("suggestionContact");
 
 const statusBox = document.getElementById("suggestionStatus");
 const submitBtn = document.getElementById("suggestionSubmitBtn");
@@ -93,29 +92,6 @@ messageInput?.addEventListener("input", updateCounter);
 updateCounter();
 
 /* ===========================
-   CONTACTO OPCIONAL
-=========================== */
-
-function updateContactVisibility() {
-  if (!wantsContact || !contactField) return;
-
-  const enabled = wantsContact.checked;
-
-  contactField.hidden = !enabled;
-
-  if (!enabled && contactInput) {
-    contactInput.value = "";
-  }
-}
-
-wantsContact?.addEventListener(
-  "change",
-  updateContactVisibility
-);
-
-updateContactVisibility();
-
-/* ===========================
    MENSAJES
 =========================== */
 
@@ -138,73 +114,112 @@ function setStatus(message, type = "") {
    VALIDACIÓN
 =========================== */
 
+function normalizeRut(value) {
+  return String(value || "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+
+function formatRut(value) {
+  const clean = normalizeRut(value).replace(/-/g, "");
+
+  if (clean.length < 2) return clean;
+
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1);
+  const withDots = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+  return `${withDots}-${dv}`;
+}
+
+function isValidRut(value) {
+  const clean = normalizeRut(value);
+
+  if (!/^\d{7,8}-?[\dK]$/.test(clean)) {
+    return false;
+  }
+
+  const parts = clean.replace(/-/g, "");
+  const body = parts.slice(0, -1);
+  const dv = parts.slice(-1);
+
+  let sum = 0;
+  let multiplier = 2;
+
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += Number(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const result = 11 - (sum % 11);
+  const expected =
+    result === 11 ? "0" :
+    result === 10 ? "K" :
+    String(result);
+
+  return dv === expected;
+}
+
+rutInput?.addEventListener("blur", () => {
+  if (rutInput.value.trim()) {
+    rutInput.value = formatRut(rutInput.value);
+  }
+});
+
 function validateForm() {
-  const name =
-    String(nameInput?.value || "").trim();
-
-  const category =
-    String(categoryInput?.value || "").trim();
-
-  const message =
-    String(messageInput?.value || "").trim();
-
-  const contact =
-    String(contactInput?.value || "").trim();
+  const name = String(nameInput?.value || "").trim();
+  const rut = String(rutInput?.value || "").trim();
+  const email = String(emailInput?.value || "").trim().toLowerCase();
+  const category = String(categoryInput?.value || "").trim();
+  const message = String(messageInput?.value || "").trim();
 
   if (!name) {
-    return {
-      ok: false,
-      error: "Escribe tu nombre."
-    };
+    return { ok: false, error: "Escribe tu nombre." };
   }
 
   if (name.length > 40) {
-    return {
-      ok: false,
-      error: "El nombre es demasiado largo."
-    };
+    return { ok: false, error: "El nombre es demasiado largo." };
+  }
+
+  if (!rut) {
+    return { ok: false, error: "Ingresa tu RUT." };
+  }
+
+  if (!isValidRut(rut)) {
+    return { ok: false, error: "Ingresa un RUT válido." };
+  }
+
+  if (!email) {
+    return { ok: false, error: "Ingresa tu correo electrónico." };
+  }
+
+  if (email.length > 120) {
+    return { ok: false, error: "El correo electrónico es demasiado largo." };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Ingresa un correo electrónico válido." };
   }
 
   if (!category) {
     return {
       ok: false,
-      error:
-        "Selecciona sobre qué quieres escribir."
+      error: "Selecciona sobre qué quieres escribir."
     };
   }
 
   if (!message) {
     return {
       ok: false,
-      error:
-        "Cuéntanos tu experiencia antes de enviar."
+      error: "Cuéntanos tu experiencia antes de enviar."
     };
   }
 
   if (message.length > 500) {
     return {
       ok: false,
-      error:
-        "El comentario supera los 500 caracteres."
-    };
-  }
-
-  if (
-    wantsContact?.checked &&
-    !contact
-  ) {
-    return {
-      ok: false,
-      error:
-        "Ingresa un teléfono o correo electrónico para que podamos contactarte."
-    };
-  }
-
-  if (contact.length > 120) {
-    return {
-      ok: false,
-      error:
-        "El dato de contacto es demasiado largo."
+      error: "El comentario supera los 500 caracteres."
     };
   }
 
@@ -212,14 +227,10 @@ function validateForm() {
     ok: true,
     data: {
       name,
+      rut: formatRut(rut),
+      email,
       category,
-      message,
-      wantsContact:
-        !!wantsContact?.checked,
-      contact:
-        wantsContact?.checked
-          ? contact
-          : ""
+      message
     }
   };
 }

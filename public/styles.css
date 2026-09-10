@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&display=swap");
+
 html, body { overflow-x: hidden; }
 
 :root{
@@ -955,7 +957,7 @@ body:not(.dj) input:focus{
 
 
 /* ===========================================================
-   MENÚ PRINCIPAL QR - MISMA ESTÉTICA DEL FORMULARIO
+   MENÚ PRINCIPAL QR - ESTILO PREMIUM / MINIMALISTA
 =========================================================== */
 
 .menu-body{
@@ -970,112 +972,333 @@ body:not(.dj) input:focus{
   color:#fff;
 
   background-image:
-    linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,.76)),
-    url("/img/fondo.jpg");
+    linear-gradient(
+      rgba(0,0,0,.50),
+      rgba(0,0,0,.66)
+    ),
+    url("/img/fondo-menu-pirata.png");
+
   background-size:cover;
   background-position:center;
   background-repeat:no-repeat;
   background-attachment:fixed;
 }
 
+/* Tarjeta central */
 .menu-container{
-  width:min(520px, 94vw);
-  padding:34px 30px;
+  position:relative;
+
+  width:min(560px, 94vw);
+  padding:38px 34px 30px;
+
   text-align:center;
 
-  background:rgba(0,0,0,.62);
-  border:1px solid rgba(200,165,122,.35);
-  border-radius:18px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10,10,10,.78),
+      rgba(5,5,5,.84)
+    );
 
-  backdrop-filter:blur(4px);
-  -webkit-backdrop-filter:blur(4px);
+  border:1px solid rgba(218,174,96,.25);
+  border-radius:22px;
+
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
 
   box-shadow:
-    0 22px 60px rgba(0,0,0,.58),
-    inset 0 0 0 1px rgba(255,255,255,.025);
+    0 28px 80px rgba(0,0,0,.58),
+    inset 0 1px 0 rgba(255,255,255,.025);
 }
 
+/* Piso */
 .menu-floor{
   display:inline-flex;
   align-items:center;
   justify-content:center;
 
-  margin-bottom:12px;
-  padding:6px 12px;
+  margin-bottom:16px;
+  padding:7px 13px;
 
-  border:1px solid rgba(200,165,122,.28);
+  border:1px solid rgba(226,183,105,.30);
   border-radius:999px;
 
-  background:rgba(0,0,0,.32);
-  color:rgba(224,190,128,.95);
+  background:rgba(34,24,11,.38);
+  color:#e6bb72;
 
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
-  letter-spacing:.14em;
+  letter-spacing:.16em;
 }
 
+/* Título */
 .menu-container h1{
   margin:0;
+
   color:#fff;
-  font-size:clamp(30px, 7vw, 42px);
+
+  font-size:clamp(30px, 6vw, 38px);
   line-height:1.08;
-  text-shadow:0 4px 18px rgba(0,0,0,.6);
+  font-weight:850;
+  letter-spacing:-.035em;
+
+  text-shadow:0 5px 20px rgba(0,0,0,.55);
 }
 
-.menu-container p{
-  margin:13px 0 28px;
-  color:rgba(255,255,255,.68);
-  font-size:14px;
+.menu-subtitle{
+  margin:11px 0 28px !important;
+
+  color:rgba(255,255,255,.54) !important;
+
+  font-size:14px !important;
+  line-height:1.5;
 }
 
+/* Grupo de botones */
+.menu-actions{
+  display:grid;
+  gap:12px;
+}
+
+/* Botones principales */
 .menu-btn{
+  position:relative;
+
   width:100%;
   min-height:58px;
-  margin-top:14px;
-  padding:16px 18px;
+  margin:0;
+  padding:0 18px;
 
-  display:flex;
+  display:grid;
+  grid-template-columns:34px 1fr 24px;
   align-items:center;
-  justify-content:center;
   gap:10px;
 
   border-radius:14px;
+
   text-decoration:none !important;
 
-  font-size:17px;
-  font-weight:900;
-  letter-spacing:.2px;
+  font-size:15px;
+  font-weight:850;
+  letter-spacing:.05px;
 
-  box-shadow:0 12px 28px rgba(0,0,0,.35);
-  transition:transform .15s ease, filter .15s ease, box-shadow .15s ease;
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.30);
+
+  transition:
+    transform .16s ease,
+    filter .16s ease,
+    border-color .16s ease,
+    background .16s ease,
+    box-shadow .16s ease;
 }
 
 .menu-btn:hover{
-  transform:translateY(-2px);
-  filter:brightness(1.07);
-  box-shadow:0 16px 34px rgba(0,0,0,.48);
+  transform:translateY(-1px);
 }
 
 .menu-btn:active{
   transform:translateY(0);
 }
 
-.menu-btn.karaoke{
-  color:#17110a;
-  border:1px solid rgba(231,194,112,.7);
-  background:linear-gradient(180deg, #d7aa45, #bc8b2f);
+.menu-btn-icon{
+  width:30px;
+  height:30px;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  border-radius:9px;
+
+  font-size:17px;
+  font-weight:900;
 }
 
+.menu-btn-text{
+  text-align:left;
+}
+
+.menu-btn-arrow{
+  justify-self:end;
+
+  font-size:25px;
+  line-height:1;
+
+  opacity:.74;
+
+  transform:translateY(-1px);
+}
+
+/* Karaoke - dorado bronce premium con pulso visible */
+.menu-btn.karaoke{
+  color:#181109;
+
+  border:1px solid rgba(198,154,76,.78);
+
+  background:
+    linear-gradient(
+      180deg,
+      #b98b42 0%,
+      #8f6428 100%
+    );
+
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.38),
+    0 0 0 1px rgba(214,170,91,.08),
+    inset 0 1px 0 rgba(255,232,188,.14);
+
+  animation:karaokeGoldPulse 2.4s ease-in-out infinite;
+  transform-origin:center;
+}
+
+.menu-btn.karaoke .menu-btn-icon{
+  background:rgba(28,18,7,.16);
+  color:#1c1309;
+}
+
+.menu-btn.karaoke:hover{
+  filter:brightness(1.08);
+
+  box-shadow:
+    0 18px 38px rgba(0,0,0,.46),
+    0 0 22px rgba(214,170,91,.24),
+    0 0 0 1px rgba(229,188,111,.22),
+    inset 0 1px 0 rgba(255,235,198,.18);
+}
+
+@keyframes karaokeGoldPulse{
+  0%, 100%{
+    box-shadow:
+      0 12px 28px rgba(0,0,0,.38),
+      0 0 0 1px rgba(214,170,91,.07),
+      0 0 0 rgba(214,170,91,0),
+      inset 0 1px 0 rgba(255,232,188,.14);
+
+    filter:brightness(.96);
+    transform:scale(1);
+  }
+
+  50%{
+    box-shadow:
+      0 16px 34px rgba(0,0,0,.42),
+      0 0 0 1px rgba(229,188,111,.24),
+      0 0 24px rgba(214,170,91,.30),
+      inset 0 1px 0 rgba(255,235,198,.18);
+
+    filter:brightness(1.08);
+    transform:scale(1.008);
+  }
+}
+
+/* Fotos - negro premium */
 .menu-btn.fotos{
-  color:#fff;
-  border:1px solid rgba(200,165,122,.52);
-  background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(0,0,0,.42));
+  color:rgba(255,255,255,.92);
+
+  border:1px solid rgba(218,174,96,.25);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.055),
+      rgba(0,0,0,.36)
+    );
+
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.menu-btn.fotos .menu-btn-icon{
+  background:rgba(222,181,110,.08);
+  color:#dcb375;
 }
 
 .menu-btn.fotos:hover{
-  border-color:rgba(224,190,128,.82);
-  background:linear-gradient(180deg, rgba(200,165,122,.13), rgba(0,0,0,.46));
+  color:#fff;
+
+  border-color:rgba(226,183,105,.48);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(226,183,105,.075),
+      rgba(0,0,0,.40)
+    );
+
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.40),
+    0 0 14px rgba(213,162,74,.06);
 }
+
+/* Opiniones */
+.menu-suggestion-link{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+
+  margin-top:23px;
+  padding:8px 11px;
+
+  color:rgba(255,255,255,.46);
+
+  font-size:13px;
+  font-weight:650;
+
+  text-decoration:none;
+
+  border-radius:9px;
+
+  transition:
+    color .15s ease,
+    background .15s ease;
+}
+
+.menu-suggestion-icon{
+  color:#caa56d;
+  font-size:15px;
+  opacity:.82;
+}
+
+.menu-suggestion-link:hover{
+  color:#e5bd79;
+  background:rgba(255,255,255,.035);
+}
+
+
+/* ===========================================================
+   FUENTE ELEGANTE SOLO PARA LOS MENÚS QR
+=========================================================== */
+.menu-floor,
+.menu-container h1,
+.menu-btn-text{
+  font-family:"Cinzel", Georgia, serif;
+}
+
+.menu-container h1{
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+
+.menu-floor{
+  font-weight:800;
+  letter-spacing:.16em;
+}
+
+.menu-btn-text{
+  font-weight:700;
+  letter-spacing:.01em;
+}
+
+.menu-subtitle,
+.menu-suggestion-link{
+  font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ===========================================================
+   MENÚ QR - RESPONSIVE
+=========================================================== */
 
 @media(max-width:600px){
   .menu-body{
@@ -1085,20 +1308,49 @@ body:not(.dj) input:focus{
 
   .menu-container{
     width:100%;
-    padding:28px 20px;
-    border-radius:16px;
+    padding:30px 20px 24px;
+    border-radius:18px;
+  }
+
+  .menu-floor{
+    margin-bottom:14px;
+    font-size:10px;
   }
 
   .menu-container h1{
-    font-size:31px;
+    font-size:30px;
+  }
+
+  .menu-subtitle{
+    margin-bottom:23px !important;
+    font-size:13px !important;
   }
 
   .menu-btn{
     min-height:56px;
-    padding:15px 14px;
-    font-size:16px;
+    padding:0 14px;
+
+    grid-template-columns:31px 1fr 20px;
+
+    font-size:15px;
+  }
+
+  .menu-btn-icon{
+    width:28px;
+    height:28px;
+    font-size:15px;
+  }
+
+  .menu-btn-arrow{
+    font-size:22px;
+  }
+
+  .menu-suggestion-link{
+    margin-top:19px;
+    font-size:12px;
   }
 }
+
 
 /* ===========================================================
    PÁGINA PARA SUBIR FOTOGRAFÍAS
@@ -2254,37 +2506,6 @@ body:not(.dj) input:focus{
   to {
     transform: rotate(360deg);
   }
-}
-
-
-/* =========================================================
-   OPINIONES Y SUGERENCIAS - LINK EN MENÚ QR
-========================================================= */
-
-.menu-suggestion-link{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:7px;
-
-  margin-top:22px;
-  padding:7px 10px;
-
-  color:rgba(255,255,255,.58);
-  font-size:13px;
-  font-weight:600;
-
-  text-decoration:none;
-  border-radius:9px;
-
-  transition:
-    color .15s ease,
-    background .15s ease;
-}
-
-.menu-suggestion-link:hover{
-  color:rgba(255,255,255,.92);
-  background:rgba(255,255,255,.05);
 }
 
 

@@ -54,6 +54,34 @@
           >
         </label>
 
+        <!-- RUT -->
+        <label class="suggestion-field">
+          <span>RUT</span>
+          <input
+            type="text"
+            id="suggestionRut"
+            name="rut"
+            maxlength="12"
+            autocomplete="off"
+            placeholder="Ej: 12.345.678-5"
+            required
+          >
+        </label>
+
+        <!-- CORREO ELECTRÓNICO -->
+        <label class="suggestion-field">
+          <span>Correo electrónico</span>
+          <input
+            type="email"
+            id="suggestionEmail"
+            name="email"
+            maxlength="120"
+            autocomplete="email"
+            placeholder="Ej: correo@ejemplo.cl"
+            required
+          >
+        </label>
+
         <!-- CATEGORÍA -->
         <div class="suggestion-field">
           <span>¿Sobre qué quieres escribir?</span>
@@ -130,59 +158,6 @@
             <span id="suggestionCharCount">0</span> / 500
           </div>
         </label>
-
-        <!-- CONTACTO -->
-        <div class="suggestion-contact-box">
-
-          <div class="suggestion-contact-head">
-
-            <div>
-              <div class="suggestion-contact-title">
-                ¿Quieres que nos comuniquemos contigo?
-              </div>
-
-              <div class="suggestion-contact-help">
-                Es opcional.
-              </div>
-            </div>
-
-            <label class="suggestion-switch">
-              <input
-                type="checkbox"
-                id="suggestionWantsContact"
-              >
-
-              <span class="suggestion-slider"></span>
-            </label>
-
-          </div>
-
-          <div
-            class="suggestion-contact-field"
-            id="suggestionContactField"
-            hidden
-          >
-
-            <label class="suggestion-field">
-              <span>Teléfono o correo electrónico</span>
-
-              <input
-                type="text"
-                id="suggestionContact"
-                name="contact"
-                maxlength="120"
-                autocomplete="email"
-                placeholder="Ej: +56 9 1234 5678 o correo@ejemplo.cl"
-              >
-            </label>
-
-            <div class="suggestion-contact-note">
-              Puedes ingresar teléfono, correo electrónico o ambos.
-            </div>
-
-          </div>
-
-        </div>
 
         <!-- ESTADO -->
         <div

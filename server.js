@@ -193,6 +193,10 @@ async function ensureProjectTables() {
 
         name VARCHAR(40) NOT NULL,
 
+        rut VARCHAR(12),
+
+        email VARCHAR(120),
+
         category VARCHAR(40) NOT NULL,
 
         message VARCHAR(500) NOT NULL,
@@ -211,6 +215,16 @@ async function ensureProjectTables() {
 
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await pool.query(`
+      ALTER TABLE suggestions
+      ADD COLUMN IF NOT EXISTS rut VARCHAR(12);
+    `);
+
+    await pool.query(`
+      ALTER TABLE suggestions
+      ADD COLUMN IF NOT EXISTS email VARCHAR(120);
     `);
 
     await pool.query(`
@@ -989,27 +1003,70 @@ function cleanSuggestionText(value, maxLength) {
     .slice(0, maxLength);
 }
 
+function normalizeSuggestionRut(value) {
+  return String(value ?? "")
+    .replace(/\./g, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
+}
+
+function isValidSuggestionRut(value) {
+  const clean = normalizeSuggestionRut(value);
+
+  if (!/^\d{7,8}-?[\dK]$/.test(clean)) {
+    return false;
+  }
+
+  const parts = clean.replace(/-/g, "");
+  const body = parts.slice(0, -1);
+  const dv = parts.slice(-1);
+
+  let sum = 0;
+  let multiplier = 2;
+
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += Number(body[i]) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
+
+  const result = 11 - (sum % 11);
+  const expected =
+    result === 11 ? "0" :
+    result === 10 ? "K" :
+    String(result);
+
+  return dv === expected;
+}
+
 function validateSuggestionPayload(body) {
   const name = cleanSuggestionText(body?.name, 40);
+  const rut = cleanSuggestionText(body?.rut, 12);
+  const email = cleanSuggestionText(body?.email, 120).toLowerCase();
   const category = cleanSuggestionText(body?.category, 40);
   const message = cleanSuggestionText(body?.message, 500);
-  const wantsContact = body?.wantsContact === true;
-  const contact = wantsContact
-    ? cleanSuggestionText(body?.contact, 160)
-    : "";
 
   if (!name) {
-    return {
-      ok: false,
-      error: "Escribe tu nombre.",
-    };
+    return { ok: false, error: "Escribe tu nombre." };
+  }
+
+  if (!rut) {
+    return { ok: false, error: "Ingresa tu RUT." };
+  }
+
+  if (!isValidSuggestionRut(rut)) {
+    return { ok: false, error: "Ingresa un RUT válido." };
+  }
+
+  if (!email) {
+    return { ok: false, error: "Ingresa tu correo electrónico." };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false, error: "Ingresa un correo electrónico válido." };
   }
 
   if (!SUGGESTION_CATEGORIES.has(category)) {
-    return {
-      ok: false,
-      error: "Selecciona una categoría válida.",
-    };
+    return { ok: false, error: "Selecciona una categoría válida." };
   }
 
   if (!message) {
@@ -1019,21 +1076,13 @@ function validateSuggestionPayload(body) {
     };
   }
 
-  if (wantsContact && !contact) {
-    return {
-      ok: false,
-      error:
-        "Ingresa un teléfono o correo electrónico para que podamos contactarte.",
-    };
-  }
-
   return {
     ok: true,
     name,
+    rut,
+    email,
     category,
     message,
-    wantsContact,
-    contact: contact || null,
   };
 }
 
@@ -1050,6 +1099,8 @@ async function saveSuggestion(req, res, floor) {
       INSERT INTO suggestions (
         floor,
         name,
+        rut,
+        email,
         category,
         message,
         wants_contact,
@@ -1063,12 +1114,16 @@ async function saveSuggestion(req, res, floor) {
         $4,
         $5,
         $6,
+        FALSE,
+        NULL,
         'pending'
       )
       RETURNING
         id,
         floor,
         name,
+        rut,
+        email,
         category,
         message,
         wants_contact,
@@ -1079,10 +1134,10 @@ async function saveSuggestion(req, res, floor) {
       [
         floor,
         validation.name,
+        validation.rut,
+        validation.email,
         validation.category,
         validation.message,
-        validation.wantsContact,
-        validation.contact,
       ]
     );
 
@@ -1189,13 +1244,15 @@ app.get(
         `
         WITH win AS (
           SELECT
-            (((($1)::date) + time '19:00') AT TIME ZONE $2) AS start_ts,
-            (((($1)::date + 1) + time '05:00') AT TIME ZONE $2) AS end_ts
+            ((($1)::date) AT TIME ZONE $2) AS start_ts,
+            (((($1)::date + 1)) AT TIME ZONE $2) AS end_ts
         )
         SELECT
           s.id,
           s.floor,
           s.name,
+          s.rut,
+          s.email,
           s.category,
           s.message,
           s.wants_contact,
@@ -1222,8 +1279,8 @@ app.get(
         `
         WITH win AS (
           SELECT
-            (((($1)::date) + time '19:00') AT TIME ZONE $2) AS start_ts,
-            (((($1)::date + 1) + time '05:00') AT TIME ZONE $2) AS end_ts
+            ((($1)::date) AT TIME ZONE $2) AS start_ts,
+            (((($1)::date + 1)) AT TIME ZONE $2) AS end_ts
         )
         SELECT
           COUNT(*)::int AS total,
@@ -1254,8 +1311,8 @@ app.get(
         ok: true,
         date,
         window: {
-          startHHMM: "19:00",
-          endHHMM: "05:00",
+          startHHMM: "00:00",
+          endHHMM: "23:59",
           tz: TZ_CHILE,
         },
         rows: listQuery.rows,
@@ -1308,6 +1365,8 @@ app.patch(
           id,
           floor,
           name,
+          rut,
+          email,
           category,
           message,
           wants_contact,
