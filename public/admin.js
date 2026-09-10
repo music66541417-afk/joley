@@ -1376,7 +1376,7 @@ function renderSuggestions(rows) {
         </strong>
 
         <span>
-          Prueba otra jornada o cambia los filtros.
+          Prueba otro día o cambia los filtros.
         </span>
 
       </div>
@@ -1509,7 +1509,7 @@ function renderSuggestions(rows) {
 }
 
 async function loadSuggestions() {
-  const date = suggestionDate?.value || serviceNightISO();
+  const date = suggestionDate?.value || todayISO();
 
   if (suggestionDate && !suggestionDate.value) {
     suggestionDate.value = date;
@@ -1555,7 +1555,7 @@ async function loadSuggestions() {
 
     if (suggestionWindowText) {
       suggestionWindowText.textContent =
-        `${fmtDateCL(date)} · 19:00 → 05:00`;
+        `${fmtDateCL(date)} · Día completo · 00:00 → 23:59`;
     }
 
     setSuggestionStatus("");
@@ -1665,10 +1665,11 @@ suggestionDate?.addEventListener("change", loadSuggestions);
 =========================== */
 (async function boot() {
   const night = serviceNightISO();
+  const today = todayISO();
 
   if (histDate) histDate.value = night;
   if (raffleDate) raffleDate.value = night;
-  if (suggestionDate) suggestionDate.value = night;
+  if (suggestionDate) suggestionDate.value = today;
   if (dayPick) dayPick.value = night;
 
   try {
