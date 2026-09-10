@@ -1538,8 +1538,17 @@ async function loadSuggestions() {
   }
 
   try {
+    // Evita que navegador/proxy reutilice una respuesta antigua.
+    params.set("_ts", String(Date.now()));
+
     const r = await fetch(
-      `/api/admin/suggestions?${params.toString()}`
+      `/api/admin/suggestions?${params.toString()}`,
+      {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache"
+        }
+      }
     );
 
     const j = await r.json();
@@ -1554,8 +1563,12 @@ async function loadSuggestions() {
     updateSuggestionSummary(j.summary || {});
 
     if (suggestionWindowText) {
+      const serverDate = j.date || date;
+      const start = j.window?.startHHMM || "00:00";
+      const end = j.window?.endHHMM || "23:59";
+
       suggestionWindowText.textContent =
-        `${fmtDateCL(date)} · Día completo · 00:00 → 23:59`;
+        `${fmtDateCL(serverDate)} · Día completo · ${start} → ${end}`;
     }
 
     setSuggestionStatus("");

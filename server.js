@@ -1199,15 +1199,15 @@ app.get(
   }
 );
 
-// Listar opiniones de una jornada.
-// Jornada: 19:00 del día seleccionado hasta 05:00 del día siguiente.
+// Listar opiniones de un día calendario chileno.
+// Día completo: 00:00 hasta 23:59 en America/Santiago.
 app.get(
   "/api/admin/suggestions",
   requireAdmin,
   async (req, res) => {
     const date = isValidISODateOnly(req.query.date)
       ? String(req.query.date)
-      : getChileNightDateKey();
+      : getChileDateKey();
 
     const floorRaw = String(req.query.floor ?? "all");
     const statusRaw = String(req.query.status ?? "all");
@@ -1242,11 +1242,6 @@ app.get(
     try {
       const listQuery = await pool.query(
         `
-        WITH win AS (
-          SELECT
-            ((($1)::date) AT TIME ZONE $2) AS start_ts,
-            (((($1)::date + 1)) AT TIME ZONE $2) AS end_ts
-        )
         SELECT
           s.id,
           s.floor,
@@ -1259,9 +1254,8 @@ app.get(
           s.contact,
           s.status,
           s.created_at
-        FROM suggestions s, win
-        WHERE s.created_at >= win.start_ts
-          AND s.created_at < win.end_ts
+        FROM suggestions s
+        WHERE (s.created_at AT TIME ZONE $2)::date = ($1)::date
           AND ($3::int IS NULL OR s.floor = $3)
           AND ($4::text IS NULL OR s.status = $4)
         ORDER BY
@@ -1277,19 +1271,13 @@ app.get(
 
       const summaryQuery = await pool.query(
         `
-        WITH win AS (
-          SELECT
-            ((($1)::date) AT TIME ZONE $2) AS start_ts,
-            (((($1)::date + 1)) AT TIME ZONE $2) AS end_ts
-        )
         SELECT
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE floor = 1)::int AS floor1,
           COUNT(*) FILTER (WHERE floor = 2)::int AS floor2,
           COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
-        FROM suggestions, win
-        WHERE created_at >= win.start_ts
-          AND created_at < win.end_ts
+        FROM suggestions
+        WHERE (created_at AT TIME ZONE $2)::date = ($1)::date
         `,
         [date, TZ_CHILE]
       );
@@ -1306,6 +1294,10 @@ app.get(
         floor2: 0,
         pending: 0,
       };
+
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
 
       return res.json({
         ok: true,
