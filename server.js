@@ -181,8 +181,56 @@ async function ensureProjectTables() {
       );
     `);
 
+    // =======================
+    // Opiniones y sugerencias
+    // =======================
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS suggestions (
+        id SERIAL PRIMARY KEY,
+
+        floor INT NOT NULL
+          CHECK (floor IN (1,2)),
+
+        name VARCHAR(40) NOT NULL,
+
+        category VARCHAR(40) NOT NULL,
+
+        message VARCHAR(500) NOT NULL,
+
+        wants_contact BOOLEAN NOT NULL DEFAULT FALSE,
+
+        contact VARCHAR(160),
+
+        status VARCHAR(20) NOT NULL DEFAULT 'pending'
+          CHECK (
+            status IN (
+              'pending',
+              'reviewed'
+            )
+          ),
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_suggestions_created_at
+      ON suggestions (created_at DESC);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_suggestions_floor_status_created
+      ON suggestions (
+        floor,
+        status,
+        created_at DESC
+      );
+    `);
+
     console.log(
-      "✅ requests3 / orders_status / gallery_photos OK"
+      "✅ requests3 / orders_status / gallery_photos / suggestions OK"
     );
   } catch (e) {
     console.log(
@@ -800,6 +848,20 @@ app.get("/piso2", (req, res) =>
   res.sendFile(process.cwd() + "/public/menu-piso2.html")
 );
 
+// =======================
+// Opiniones y sugerencias
+// =======================
+
+// Ambos pisos usan el mismo formulario.
+// El piso se detecta por la URL en sugerencias.js.
+app.get("/piso1/sugerencias", (req, res) =>
+  res.sendFile(process.cwd() + "/public/sugerencias.html")
+);
+
+app.get("/piso2/sugerencias", (req, res) =>
+  res.sendFile(process.cwd() + "/public/sugerencias.html")
+);
+
 // Piso 3 sigue igual por ahora
 app.get("/piso3", (req, res) =>
   res.sendFile(process.cwd() + "/public/piso3.html")
@@ -907,6 +969,386 @@ app.post("/auth/login", async (req, res) => {
 app.post("/auth/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
+
+// =======================
+// Opiniones y sugerencias
+// =======================
+
+const SUGGESTION_CATEGORIES = new Set([
+  "Sugerencia",
+  "Reclamo",
+  "Felicitación",
+  "Problema con la atención",
+  "Otro",
+]);
+
+function cleanSuggestionText(value, maxLength) {
+  return String(value ?? "")
+    .replace(/\u0000/g, "")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function validateSuggestionPayload(body) {
+  const name = cleanSuggestionText(body?.name, 40);
+  const category = cleanSuggestionText(body?.category, 40);
+  const message = cleanSuggestionText(body?.message, 500);
+  const wantsContact = body?.wantsContact === true;
+  const contact = wantsContact
+    ? cleanSuggestionText(body?.contact, 160)
+    : "";
+
+  if (!name) {
+    return {
+      ok: false,
+      error: "Escribe tu nombre.",
+    };
+  }
+
+  if (!SUGGESTION_CATEGORIES.has(category)) {
+    return {
+      ok: false,
+      error: "Selecciona una categoría válida.",
+    };
+  }
+
+  if (!message) {
+    return {
+      ok: false,
+      error: "Cuéntanos tu experiencia antes de enviar.",
+    };
+  }
+
+  if (wantsContact && !contact) {
+    return {
+      ok: false,
+      error:
+        "Ingresa un teléfono o correo electrónico para que podamos contactarte.",
+    };
+  }
+
+  return {
+    ok: true,
+    name,
+    category,
+    message,
+    wantsContact,
+    contact: contact || null,
+  };
+}
+
+async function saveSuggestion(req, res, floor) {
+  const validation = validateSuggestionPayload(req.body);
+
+  if (!validation.ok) {
+    return res.status(400).json(validation);
+  }
+
+  try {
+    const q = await pool.query(
+      `
+      INSERT INTO suggestions (
+        floor,
+        name,
+        category,
+        message,
+        wants_contact,
+        contact,
+        status
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        'pending'
+      )
+      RETURNING
+        id,
+        floor,
+        name,
+        category,
+        message,
+        wants_contact,
+        contact,
+        status,
+        created_at
+      `,
+      [
+        floor,
+        validation.name,
+        validation.category,
+        validation.message,
+        validation.wantsContact,
+        validation.contact,
+      ]
+    );
+
+    io.emit("suggestions:update", {
+      floor,
+      action: "created",
+      suggestionId: Number(q.rows[0].id),
+      at: new Date().toISOString(),
+    });
+
+    return res.json({
+      ok: true,
+      message: "Tu opinión fue enviada correctamente.",
+    });
+  } catch (error) {
+    console.error(
+      `Error guardando opinión piso ${floor}:`,
+      error
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error: "No se pudo guardar tu opinión.",
+    });
+  }
+}
+
+app.post("/api/suggestions/piso1", (req, res) =>
+  saveSuggestion(req, res, 1)
+);
+
+app.post("/api/suggestions/piso2", (req, res) =>
+  saveSuggestion(req, res, 2)
+);
+
+// Cantidad total de opiniones pendientes.
+// Solo puede consultarlo el administrador.
+app.get(
+  "/api/admin/suggestions/pending-count",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const q = await pool.query(`
+        SELECT COUNT(*)::int AS pending
+        FROM suggestions
+        WHERE status = 'pending'
+      `);
+
+      return res.json({
+        ok: true,
+        pending: Number(q.rows?.[0]?.pending || 0),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        ok: false,
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Listar opiniones de una jornada.
+// Jornada: 19:00 del día seleccionado hasta 05:00 del día siguiente.
+app.get(
+  "/api/admin/suggestions",
+  requireAdmin,
+  async (req, res) => {
+    const date = isValidISODateOnly(req.query.date)
+      ? String(req.query.date)
+      : getChileNightDateKey();
+
+    const floorRaw = String(req.query.floor ?? "all");
+    const statusRaw = String(req.query.status ?? "all");
+
+    const floor =
+      floorRaw === "all"
+        ? null
+        : Number(floorRaw);
+
+    const status =
+      statusRaw === "all"
+        ? null
+        : statusRaw;
+
+    if (floor !== null && ![1, 2].includes(floor)) {
+      return res.status(400).json({
+        ok: false,
+        error: "floor inválido",
+      });
+    }
+
+    if (
+      status !== null &&
+      !["pending", "reviewed"].includes(status)
+    ) {
+      return res.status(400).json({
+        ok: false,
+        error: "status inválido",
+      });
+    }
+
+    try {
+      const listQuery = await pool.query(
+        `
+        WITH win AS (
+          SELECT
+            (((($1)::date) + time '19:00') AT TIME ZONE $2) AS start_ts,
+            (((($1)::date + 1) + time '05:00') AT TIME ZONE $2) AS end_ts
+        )
+        SELECT
+          s.id,
+          s.floor,
+          s.name,
+          s.category,
+          s.message,
+          s.wants_contact,
+          s.contact,
+          s.status,
+          s.created_at
+        FROM suggestions s, win
+        WHERE s.created_at >= win.start_ts
+          AND s.created_at < win.end_ts
+          AND ($3::int IS NULL OR s.floor = $3)
+          AND ($4::text IS NULL OR s.status = $4)
+        ORDER BY
+          CASE
+            WHEN s.status = 'pending' THEN 0
+            ELSE 1
+          END,
+          s.created_at DESC,
+          s.id DESC
+        `,
+        [date, TZ_CHILE, floor, status]
+      );
+
+      const summaryQuery = await pool.query(
+        `
+        WITH win AS (
+          SELECT
+            (((($1)::date) + time '19:00') AT TIME ZONE $2) AS start_ts,
+            (((($1)::date + 1) + time '05:00') AT TIME ZONE $2) AS end_ts
+        )
+        SELECT
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE floor = 1)::int AS floor1,
+          COUNT(*) FILTER (WHERE floor = 2)::int AS floor2,
+          COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+        FROM suggestions, win
+        WHERE created_at >= win.start_ts
+          AND created_at < win.end_ts
+        `,
+        [date, TZ_CHILE]
+      );
+
+      const pendingQuery = await pool.query(`
+        SELECT COUNT(*)::int AS pending
+        FROM suggestions
+        WHERE status = 'pending'
+      `);
+
+      const summary = summaryQuery.rows?.[0] || {
+        total: 0,
+        floor1: 0,
+        floor2: 0,
+        pending: 0,
+      };
+
+      return res.json({
+        ok: true,
+        date,
+        window: {
+          startHHMM: "19:00",
+          endHHMM: "05:00",
+          tz: TZ_CHILE,
+        },
+        rows: listQuery.rows,
+        summary: {
+          total: Number(summary.total || 0),
+          floor1: Number(summary.floor1 || 0),
+          floor2: Number(summary.floor2 || 0),
+          pending: Number(summary.pending || 0),
+        },
+        pendingTotal: Number(
+          pendingQuery.rows?.[0]?.pending || 0
+        ),
+      });
+    } catch (error) {
+      console.error(
+        "Error cargando opiniones admin:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Marcar una opinión como revisada.
+// No se elimina: permanece en el historial.
+app.patch(
+  "/api/admin/suggestions/:id/review",
+  requireAdmin,
+  async (req, res) => {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "ID inválido.",
+      });
+    }
+
+    try {
+      const q = await pool.query(
+        `
+        UPDATE suggestions
+        SET status = 'reviewed'
+        WHERE id = $1
+        RETURNING
+          id,
+          floor,
+          name,
+          category,
+          message,
+          wants_contact,
+          contact,
+          status,
+          created_at
+        `,
+        [id]
+      );
+
+      if (!q.rowCount) {
+        return res.status(404).json({
+          ok: false,
+          error: "Opinión no encontrada.",
+        });
+      }
+
+      io.emit("suggestions:update", {
+        floor: Number(q.rows[0].floor),
+        action: "reviewed",
+        suggestionId: id,
+        at: new Date().toISOString(),
+      });
+
+      return res.json({
+        ok: true,
+        suggestion: q.rows[0],
+      });
+    } catch (error) {
+      console.error(
+        "Error marcando opinión como revisada:",
+        error
+      );
+
+      return res.status(500).json({
+        ok: false,
+        error: "No se pudo actualizar la opinión.",
+      });
+    }
+  }
+);
 
 // =======================
 // Galería: subida pública
@@ -2681,6 +3123,8 @@ const PORT = process.env.PORT || 3000;
     console.log(`Piso1 (Clientes): http://localhost:${PORT}/piso1`);
     console.log(`DJ2:    http://localhost:${PORT}/dj2`);
     console.log(`Piso2 (Clientes): http://localhost:${PORT}/piso2`);
+    console.log(`Opiniones Piso1: http://localhost:${PORT}/piso1/sugerencias`);
+    console.log(`Opiniones Piso2: http://localhost:${PORT}/piso2/sugerencias`);
     console.log(`DJ3:    http://localhost:${PORT}/dj3`);
     console.log(`Piso3 (Clientes): http://localhost:${PORT}/piso3`);
     console.log(`Admin:  http://localhost:${PORT}/admin`);

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Opiniones y sugerencias</title>
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body class="suggestion-page">
+
+  <main class="suggestion-shell">
+
+    <section class="suggestion-card">
+
+      <button
+        type="button"
+        class="suggestion-back"
+        id="suggestionBackBtn"
+      >
+        ← Volver
+      </button>
+
+      <div class="suggestion-floor" id="suggestionFloor">
+        PISO
+      </div>
+
+      <h1>Opiniones y sugerencias</h1>
+
+      <p class="suggestion-intro">
+        Queremos conocer tu experiencia.
+      </p>
+
+      <form id="suggestionForm" class="suggestion-form">
+
+        <!-- NOMBRE -->
+        <label class="suggestion-field">
+          <span>Nombre</span>
+
+          <input
+            type="text"
+            id="suggestionName"
+            name="name"
+            maxlength="40"
+            autocomplete="name"
+            placeholder="Escribe tu nombre"
+            required
+          >
+        </label>
+
+        <!-- CATEGORÍA -->
+        <div class="suggestion-field">
+          <span>¿Sobre qué quieres escribir?</span>
+
+          <div
+            class="suggestion-category-grid"
+            id="suggestionCategoryGrid"
+          >
+
+            <button
+              type="button"
+              class="suggestion-category"
+              data-category="Sugerencia"
+            >
+              Sugerencia
+            </button>
+
+            <button
+              type="button"
+              class="suggestion-category"
+              data-category="Reclamo"
+            >
+              Reclamo
+            </button>
+
+            <button
+              type="button"
+              class="suggestion-category"
+              data-category="Felicitación"
+            >
+              Felicitación
+            </button>
+
+            <button
+              type="button"
+              class="suggestion-category"
+              data-category="Problema con la atención"
+            >
+              Problema con la atención
+            </button>
+
+            <button
+              type="button"
+              class="suggestion-category suggestion-category-wide"
+              data-category="Otro"
+            >
+              Otro
+            </button>
+
+          </div>
+
+          <input
+            type="hidden"
+            id="suggestionCategory"
+            name="category"
+            required
+          >
+        </div>
+
+        <!-- COMENTARIO -->
+        <label class="suggestion-field">
+          <span>Cuéntanos tu experiencia</span>
+
+          <textarea
+            id="suggestionMessage"
+            name="message"
+            maxlength="500"
+            rows="6"
+            placeholder="Escribe aquí tu comentario..."
+            required
+          ></textarea>
+
+          <div class="suggestion-counter">
+            <span id="suggestionCharCount">0</span> / 500
+          </div>
+        </label>
+
+        <!-- CONTACTO -->
+        <div class="suggestion-contact-box">
+
+          <div class="suggestion-contact-head">
+
+            <div>
+              <div class="suggestion-contact-title">
+                ¿Quieres que nos comuniquemos contigo?
+              </div>
+
+              <div class="suggestion-contact-help">
+                Es opcional.
+              </div>
+            </div>
+
+            <label class="suggestion-switch">
+              <input
+                type="checkbox"
+                id="suggestionWantsContact"
+              >
+
+              <span class="suggestion-slider"></span>
+            </label>
+
+          </div>
+
+          <div
+            class="suggestion-contact-field"
+            id="suggestionContactField"
+            hidden
+          >
+
+            <label class="suggestion-field">
+              <span>Teléfono o correo electrónico</span>
+
+              <input
+                type="text"
+                id="suggestionContact"
+                name="contact"
+                maxlength="120"
+                autocomplete="email"
+                placeholder="Ej: +56 9 1234 5678 o correo@ejemplo.cl"
+              >
+            </label>
+
+            <div class="suggestion-contact-note">
+              Puedes ingresar teléfono, correo electrónico o ambos.
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ESTADO -->
+        <div
+          class="suggestion-message"
+          id="suggestionStatus"
+          aria-live="polite"
+        ></div>
+
+        <!-- BOTÓN -->
+        <button
+          type="submit"
+          class="suggestion-submit"
+          id="suggestionSubmitBtn"
+        >
+          Enviar opinión
+        </button>
+
+      </form>
+
+      <!-- CONFIRMACIÓN -->
+      <div
+        class="suggestion-success"
+        id="suggestionSuccess"
+        hidden
+      >
+
+        <div class="suggestion-success-icon">
+          ✓
+        </div>
+
+        <h2>¡Gracias por tu opinión!</h2>
+
+        <p>
+          Tu comentario fue enviado correctamente al equipo de administración.
+        </p>
+
+        <button
+          type="button"
+          class="suggestion-submit"
+          id="suggestionReturnBtn"
+        >
+          Volver al menú
+        </button>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="/sugerencias.js"></script>
+</body>
+</html>
