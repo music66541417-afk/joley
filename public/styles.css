@@ -988,8 +988,8 @@ body:not(.dj) input:focus{
 .menu-container{
   position:relative;
 
-  width:min(560px, 94vw);
-  padding:38px 34px 30px;
+  width:min(600px, 94vw);
+  padding: 44px 38px 36px;
 
   text-align:center;
 
@@ -1000,7 +1000,7 @@ body:not(.dj) input:focus{
       rgba(5,5,5,.84)
     );
 
-  border:1px solid rgba(218,174,96,.25);
+  border:1px solid rgba(218,174,96,.15);
   border-radius:22px;
 
   backdrop-filter:blur(14px);
@@ -1008,7 +1008,9 @@ body:not(.dj) input:focus{
 
   box-shadow:
     0 28px 80px rgba(0,0,0,.58),
-    inset 0 1px 0 rgba(255,255,255,.025);
+    inset 0 1px 0 rgba(255,255,255,.035),
+    inset 0 0 28px rgba(218,174,96,.025),
+    0 0 0 1px rgba(218,174,96,.025);
 }
 
 /* Piso */
@@ -1017,14 +1019,14 @@ body:not(.dj) input:focus{
   align-items:center;
   justify-content:center;
 
-  margin-bottom:16px;
+  margin-bottom:11px;
   padding:7px 13px;
 
   border:1px solid rgba(226,183,105,.30);
   border-radius:999px;
 
-  background:rgba(34,24,11,.38);
-  color:#e6bb72;
+  background:rgba(34,24,11,.28);
+  color:rgba(230,187,114,.72);
 
   font-size:11px;
   font-weight:900;
@@ -1037,7 +1039,7 @@ body:not(.dj) input:focus{
 
   color:#fff;
 
-  font-size:clamp(30px, 6vw, 38px);
+  font-size:clamp(28px, 5.4vw, 35px);
   line-height:1.08;
   font-weight:850;
   letter-spacing:-.035em;
@@ -1046,7 +1048,7 @@ body:not(.dj) input:focus{
 }
 
 .menu-subtitle{
-  margin:11px 0 28px !important;
+  margin:11px 0 44px !important;
 
   color:rgba(255,255,255,.54) !important;
 
@@ -1057,7 +1059,7 @@ body:not(.dj) input:focus{
 /* Grupo de botones */
 .menu-actions{
   display:grid;
-  gap:12px;
+  gap:16px;
 }
 
 /* Botones principales */
@@ -1109,8 +1111,6 @@ body:not(.dj) input:focus{
   align-items:center;
   justify-content:center;
 
-  border-radius:9px;
-
   font-size:17px;
   font-weight:900;
 }
@@ -1139,16 +1139,14 @@ body:not(.dj) input:focus{
   background:
     linear-gradient(
       180deg,
-      #b98b42 0%,
-      #8f6428 100%
+      #a97b38 0%,
+      #76501f 100%
     );
 
   box-shadow:
     0 12px 28px rgba(0,0,0,.38),
     0 0 0 1px rgba(214,170,91,.08),
     inset 0 1px 0 rgba(255,232,188,.14);
-
-  animation:karaokeGoldPulse 2.4s ease-in-out infinite;
   transform-origin:center;
 }
 
@@ -1158,7 +1156,7 @@ body:not(.dj) input:focus{
 }
 
 .menu-btn.karaoke:hover{
-  filter:brightness(1.08);
+  filter:brightness(1.03);
 
   box-shadow:
     0 18px 38px rgba(0,0,0,.46),
@@ -1167,29 +1165,6 @@ body:not(.dj) input:focus{
     inset 0 1px 0 rgba(255,235,198,.18);
 }
 
-@keyframes karaokeGoldPulse{
-  0%, 100%{
-    box-shadow:
-      0 12px 28px rgba(0,0,0,.38),
-      0 0 0 1px rgba(214,170,91,.07),
-      0 0 0 rgba(214,170,91,0),
-      inset 0 1px 0 rgba(255,232,188,.14);
-
-    filter:brightness(.96);
-    transform:scale(1);
-  }
-
-  50%{
-    box-shadow:
-      0 16px 34px rgba(0,0,0,.42),
-      0 0 0 1px rgba(229,188,111,.24),
-      0 0 24px rgba(214,170,91,.30),
-      inset 0 1px 0 rgba(255,235,198,.18);
-
-    filter:brightness(1.08);
-    transform:scale(1.008);
-  }
-}
 
 /* Fotos - negro premium */
 .menu-btn.fotos{
@@ -1231,40 +1206,96 @@ body:not(.dj) input:focus{
     0 0 14px rgba(213,162,74,.06);
 }
 
-/* Opiniones */
+/* Opiniones y sugerencias - botón */
 .menu-suggestion-link{
-  display:inline-flex;
+  position:relative;
+
+  width:100%;
+  min-height:58px;
+  margin-top:12px;
+  padding:0 18px;
+
+  display:flex;
   align-items:center;
   justify-content:center;
-  gap:8px;
 
-  margin-top:23px;
-  padding:8px 11px;
+  border:1px solid rgba(185,85,85,.55);
+  border-radius:14px;
 
-  color:rgba(255,255,255,.46);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.035),
+      rgba(0,0,0,.42)
+    );
 
-  font-size:13px;
-  font-weight:650;
+  color:#c85b5b !important;
 
-  text-decoration:none;
+  font-family:"Cinzel", Georgia, serif !important;
+  font-size:15px;
+  font-weight:700 !important;
+  letter-spacing:.01em;
 
-  border-radius:9px;
+  text-decoration:none !important;
+
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.02);
 
   transition:
-    color .15s ease,
-    background .15s ease;
+    transform .16s ease,
+    color .16s ease,
+    background .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease,
+    filter .16s ease;
 }
 
+.menu-suggestion-link *,
+.menu-suggestion-link span{
+  font-family:"Cinzel", Georgia, serif !important;
+  font-weight:700 !important;
+  color:inherit !important;
+  -webkit-text-fill-color:currentColor !important;
+}
+
+/* Oculta el icono/círculo anterior */
 .menu-suggestion-icon{
-  color:#caa56d;
-  font-size:15px;
-  opacity:.82;
+  display:none !important;
 }
 
 .menu-suggestion-link:hover{
-  color:#e5bd79;
-  background:rgba(255,255,255,.035);
+  color:#fff !important;
+  border-color:rgba(210,80,80,.95);
+
+  background:
+    linear-gradient(
+      180deg,
+      #a84444,
+      #762d2d
+    );
+
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.40),
+    0 0 18px rgba(190,65,65,.18);
+
+  transform:translateY(-1px);
 }
+
+.menu-suggestion-link:active{
+  color:#fff !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #913838,
+      #652727
+    );
+
+  transform:translateY(0);
+  filter:brightness(.96);
+}
+
 
 
 /* ===========================================================
@@ -1272,8 +1303,10 @@ body:not(.dj) input:focus{
 =========================================================== */
 .menu-floor,
 .menu-container h1,
-.menu-btn-text{
-  font-family:"Cinzel", Georgia, serif;
+.menu-btn-text,
+.menu-suggestion-link,
+.menu-suggestion-link *{
+  font-family:"Cinzel", Georgia, serif !important;
 }
 
 .menu-container h1{
@@ -1286,13 +1319,14 @@ body:not(.dj) input:focus{
   letter-spacing:.16em;
 }
 
-.menu-btn-text{
-  font-weight:700;
+.menu-btn-text,
+.menu-suggestion-link,
+.menu-suggestion-link *{
+  font-weight:700 !important;
   letter-spacing:.01em;
 }
 
-.menu-subtitle,
-.menu-suggestion-link{
+.menu-subtitle{
   font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
@@ -1308,7 +1342,7 @@ body:not(.dj) input:focus{
 
   .menu-container{
     width:100%;
-    padding:30px 20px 24px;
+    padding:39px 22px 33px;
     border-radius:18px;
   }
 
@@ -1318,7 +1352,7 @@ body:not(.dj) input:focus{
   }
 
   .menu-container h1{
-    font-size:30px;
+    font-size:28px;
   }
 
   .menu-subtitle{
@@ -1346,8 +1380,9 @@ body:not(.dj) input:focus{
   }
 
   .menu-suggestion-link{
-    margin-top:19px;
-    font-size:12px;
+    margin-top:12px;
+    min-height:56px;
+    font-size:14px;
   }
 }
 
@@ -4566,4 +4601,462 @@ body:not(.dj) input:focus{
   .admin-wheel-wrap{
     min-height:330px;
   }
+}
+
+
+/* ===========================================================
+   FIX FINAL MENÚ QR
+   - Restaura la fuente Cinzel
+   - Opiniones como tercer botón
+   - Icono de exclamación + flecha
+=========================================================== */
+
+/* Forzar la fuente correcta en TODO lo importante del menú */
+.menu-body .menu-floor,
+.menu-body .menu-container h1,
+.menu-body .menu-btn,
+.menu-body .menu-btn *,
+.menu-body .menu-btn-text,
+.menu-body .menu-suggestion-link,
+.menu-body .menu-suggestion-link *{
+  font-family:"Cinzel", Georgia, serif !important;
+}
+
+/* El subtítulo conserva una fuente más limpia */
+.menu-body .menu-subtitle{
+  font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+}
+
+/* Tercer botón: misma estructura de los otros */
+.menu-body .menu-suggestion-link{
+  width:100%;
+  min-height:58px;
+  margin-top:12px;
+  padding:0 18px;
+
+  display:grid !important;
+  grid-template-columns:34px 1fr 24px;
+  align-items:center;
+  gap:10px;
+
+  color:#c85b5b !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,.045),
+      rgba(0,0,0,.40)
+    );
+
+  border:1px solid rgba(135,58,58,.48);
+  border-radius:14px;
+
+  font-size:15px;
+  font-weight:700 !important;
+  letter-spacing:.01em;
+
+  text-align:left;
+  text-decoration:none !important;
+
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.30),
+    inset 0 1px 0 rgba(255,255,255,.02);
+
+  transition:
+    transform .16s ease,
+    color .16s ease,
+    background .16s ease,
+    border-color .16s ease,
+    box-shadow .16s ease,
+    filter .16s ease;
+}
+
+/* Icono de exclamación, sin necesitar cambiar el HTML */
+.menu-body .menu-suggestion-link::before{
+  content:"!";
+
+  width:30px;
+  height:30px;
+
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  color:#d66363;
+
+  font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+  font-size:19px;
+  font-weight:900;
+  line-height:1;
+}
+
+/* Flecha a la derecha igual que los otros botones */
+.menu-body .menu-suggestion-link::after{
+  content:"›";
+
+  justify-self:end;
+
+  color:#c85b5b;
+
+  font-family:system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+  font-size:25px;
+  font-weight:900;
+  line-height:1;
+
+  opacity:.80;
+
+  transform:translateY(-1px);
+}
+
+/* Si el HTML todavía trae el icono antiguo, se oculta */
+.menu-body .menu-suggestion-icon{
+  display:none !important;
+}
+
+/* Hover: botón rojo completo */
+.menu-body .menu-suggestion-link:hover{
+  color:#fff !important;
+
+  border-color:rgba(150,64,64,.72);
+
+  background:
+    linear-gradient(
+      180deg,
+      #a84444,
+      #762d2d
+    );
+
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.40),
+    0 0 18px rgba(190,65,65,.18);
+
+  transform:translateY(-1px);
+}
+
+.menu-body .menu-suggestion-link:hover::before{
+  color:#fff;
+  background:rgba(0,0,0,.15);
+}
+
+.menu-body .menu-suggestion-link:hover::after{
+  color:#fff;
+}
+
+/* Click */
+.menu-body .menu-suggestion-link:active{
+  color:#fff !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #913838,
+      #652727
+    );
+
+  transform:translateY(0);
+  filter:brightness(.97);
+}
+
+@media(max-width:600px){
+  .menu-body .menu-suggestion-link{
+    margin-top:16px;
+    min-height:56px;
+    padding:0 14px;
+    grid-template-columns:31px 1fr 20px;
+    font-size:15px;
+  }
+
+  .menu-body .menu-suggestion-link::before{
+    width:28px;
+    height:28px;
+    font-size:17px;
+  }
+
+  .menu-body .menu-suggestion-link::after{
+    font-size:22px;
+  }
+}
+
+
+/* ===========================================================
+   HOVER COMÚN - LOS 3 BOTONES DEL MENÚ
+=========================================================== */
+.menu-body .menu-btn,
+.menu-body .menu-suggestion-link{
+  transition:
+    transform .16s ease,
+    filter .16s ease,
+    border-color .16s ease,
+    background .16s ease,
+    box-shadow .16s ease;
+}
+
+.menu-body .menu-btn:hover,
+.menu-body .menu-suggestion-link:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.04);
+}
+
+.menu-body .menu-btn:active,
+.menu-body .menu-suggestion-link:active{
+  transform:translateY(0);
+}
+
+
+/* ===========================================================
+   ICONOS DEL MENÚ - SOLO EL GLIFO, SIN CAJA/FONDO
+=========================================================== */
+.menu-body .menu-btn-icon{
+  width:30px !important;
+  height:30px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  border:none !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  padding:0 !important;
+}
+
+.menu-body .menu-btn.karaoke .menu-btn-icon{
+  background:transparent !important;
+  color:#2b1c0a !important;
+}
+
+.menu-body .menu-btn.fotos .menu-btn-icon{
+  background:transparent !important;
+  color:#dcb375 !important;
+}
+
+
+/* ===========================================================
+   FLECHAS - FINAS Y DEL MISMO TAMAÑO
+=========================================================== */
+.menu-body .menu-btn-arrow,
+.menu-body .menu-suggestion-link::after{
+  justify-self:end !important;
+
+  font-family:Arial, Helvetica, sans-serif !important;
+  font-size:22px !important;
+  font-weight:400 !important;
+  line-height:1 !important;
+
+  color:rgba(255,255,255,.68) !important;
+  opacity:1 !important;
+
+  transform:translateY(-1px) !important;
+}
+
+.menu-body .menu-btn.karaoke .menu-btn-arrow{
+  color:rgba(43,28,10,.62) !important;
+}
+
+.menu-body .menu-suggestion-link::after{
+  color:rgba(255,255,255,.68) !important;
+}
+
+.menu-body .menu-suggestion-link:hover::after{
+  color:rgba(255,255,255,.82) !important;
+}
+
+
+/* ===========================================================
+   FLECHAS V6 - TODAS FINAS COMO LA PRIMERA
+=========================================================== */
+.menu-body .menu-btn-arrow,
+.menu-body .menu-suggestion-link::after{
+  justify-self:end !important;
+
+  font-family:"Arial Narrow", Arial, Helvetica, sans-serif !important;
+  font-size:22px !important;
+  font-weight:300 !important;
+  line-height:1 !important;
+
+  opacity:.72 !important;
+  text-shadow:none !important;
+  -webkit-text-stroke:0 transparent !important;
+
+  /* Las hace visualmente más delgadas sin cambiar su altura */
+  transform:translateY(-1px) scaleX(.72) !important;
+  transform-origin:center !important;
+}
+
+/* Mantener el color propio de cada botón */
+.menu-body .menu-btn.karaoke .menu-btn-arrow{
+  color:rgba(43,28,10,.62) !important;
+}
+
+.menu-body .menu-btn.fotos .menu-btn-arrow{
+  color:rgba(255,255,255,.68) !important;
+}
+
+.menu-body .menu-suggestion-link::after{
+  color:rgba(255,255,255,.68) !important;
+  content:"›" !important;
+}
+
+.menu-body .menu-suggestion-link:hover::after{
+  color:rgba(255,255,255,.82) !important;
+}
+
+
+/* ===========================================================
+   ICONO FOTOS - CÁMARA EN CUADRADO
+=========================================================== */
+.menu-body .menu-btn.fotos .menu-btn-icon{
+  width:30px !important;
+  height:30px !important;
+
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  background:rgba(218,174,96,.08) !important;
+  border:1px solid rgba(218,174,96,.12) !important;
+  border-radius:7px !important;
+
+  color:transparent !important;
+  font-size:0 !important;
+  box-shadow:none !important;
+}
+
+/* Reemplaza el icono anterior por una cámara fotográfica */
+.menu-body .menu-btn.fotos .menu-btn-icon::before{
+  content:"📷";
+
+  display:block;
+
+  font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif !important;
+  font-size:17px !important;
+  line-height:1 !important;
+
+  color:initial !important;
+}
+
+
+/* ===========================================================
+   FOTO - CÁMARA SOLA, SOBRIA Y SIN BORDE
+=========================================================== */
+.menu-body .menu-btn.fotos .menu-btn-icon{
+  width:30px !important;
+  height:30px !important;
+
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+
+  border:none !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  padding:0 !important;
+
+  color:transparent !important;
+  font-size:0 !important;
+}
+
+.menu-body .menu-btn.fotos .menu-btn-icon::before{
+  content:"📷";
+
+  display:block;
+
+  font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif !important;
+  font-size:18px !important;
+  line-height:1 !important;
+
+  color:initial !important;
+
+  /* vuelve el emoji más sobrio, casi blanco y negro */
+  filter:grayscale(1) brightness(1.25);
+  opacity:.82;
+}
+
+
+/* ===========================================================
+   FLECHAS - ESTILO ANTERIOR, MISMO TAMAÑO EN LAS 3
+=========================================================== */
+.menu-body .menu-btn-arrow,
+.menu-body .menu-suggestion-link::after{
+  justify-self:end !important;
+
+  font-family:Arial, Helvetica, sans-serif !important;
+  font-size:22px !important;
+  font-weight:700 !important;
+  line-height:1 !important;
+
+  opacity:.74 !important;
+  text-shadow:none !important;
+  -webkit-text-stroke:0 transparent !important;
+
+  transform:translateY(-1px) !important;
+  transform-origin:center !important;
+}
+
+/* Colores según cada botón */
+.menu-body .menu-btn.karaoke .menu-btn-arrow{
+  color:rgba(43,28,10,.68) !important;
+}
+
+.menu-body .menu-btn.fotos .menu-btn-arrow{
+  color:rgba(255,255,255,.72) !important;
+}
+
+.menu-body .menu-suggestion-link::after{
+  content:"›" !important;
+  color:rgba(255,255,255,.72) !important;
+}
+
+.menu-body .menu-suggestion-link:hover::after{
+  color:rgba(255,255,255,.86) !important;
+}
+
+
+/* ===========================================================
+   ESPACIADO UNIFORME ENTRE LAS 3 TARJETAS
+=========================================================== */
+.menu-body .menu-actions{
+  gap:16px !important;
+}
+
+.menu-body .menu-suggestion-link{
+  margin-top:16px !important;
+}
+
+/* Un poco más de aire inferior para que el tercer botón no se vea apretado */
+.menu-body .menu-container{
+  padding-bottom:52px !important;
+}
+
+@media(max-width:600px){
+  .menu-body .menu-actions{
+    gap:16px !important;
+  }
+
+  .menu-body .menu-suggestion-link{
+    margin-top:16px !important;
+  }
+
+  .menu-body .menu-container{
+    padding-bottom:38px !important;
+  }
+}
+
+
+/* ===========================================================
+   PISO 1 / PISO 2 - SOLO TEXTO, SIN CÁPSULA
+=========================================================== */
+.menu-body .menu-floor{
+  display:block !important;
+
+  margin-bottom:11px !important;
+  padding:0 !important;
+
+  border:none !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+
+  color:rgba(230,187,114,.72) !important;
 }
